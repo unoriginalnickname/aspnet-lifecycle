@@ -642,8 +642,21 @@
 
 builder.Services.<span class="fn">AddControllers</span>();
 builder.Services.<span class="fn">AddAuthentication</span>(<span class="cls">JwtBearerDefaults</span>.AuthenticationScheme)
-    .<span class="fn">AddJwtBearer</span>();  <span class="cmt">// reads Jwt:Secret, Jwt:Issuer, Jwt:Audience from appsettings.json automatically</span>
+    .<span class="fn">AddJwtBearer</span>(options =&gt; {           <span class="cmt">// configure TokenValidationParameters explicitly —</span>
+        options.TokenValidationParameters = <span class="kw">new</span> <span class="cls">TokenValidationParameters</span> {  <span class="cmt">// key, issuer, audience are NOT read automatically</span>
+            <span class="cls">ValidateIssuerSigningKey</span> = <span class="kw">true</span>,
+            <span class="cls">IssuerSigningKey</span>         = <span class="kw">new</span> <span class="cls">SymmetricSecurityKey</span>(<span class="cls">Encoding</span>.UTF8.<span class="fn">GetBytes</span>(builder.Configuration[<span class="str">"Jwt:Secret"</span>]!)),
+            <span class="cls">ValidIssuer</span>              = builder.Configuration[<span class="str">"Jwt:Issuer"</span>],
+            <span class="cls">ValidAudience</span>            = builder.Configuration[<span class="str">"Jwt:Audience"</span>],
+        };
+    });
 builder.Services.<span class="fn">AddProblemDetails</span>();
+builder.Services.<span class="fn">AddRateLimiter</span>(o =&gt; o.<span class="fn">AddFixedWindowLimiter</span>(<span class="str">"fixed"</span>, opt =&gt; {
+    opt.PermitLimit          = <span class="num">100</span>;
+    opt.Window               = <span class="cls">TimeSpan</span>.<span class="fn">FromMinutes</span>(<span class="num">1</span>);
+    opt.QueueProcessingOrder = <span class="cls">QueueProcessingOrder</span>.OldestFirst;
+    opt.QueueLimit           = <span class="num">0</span>;   <span class="cmt">// reject immediately when limit hit — no queue</span>
+}));  <span class="cmt">// .NET 7+; UseRateLimiter() activates it in the pipeline</span>
 builder.Services.<span class="fn">AddScoped</span>&lt;<span class="cls">IUserService</span>, <span class="cls">UserService</span>&gt;();
 builder.Services.<span class="fn">AddDbContext</span>&lt;<span class="cls">AppDbContext</span>&gt;(o =&gt;
     o.<span class="fn">UseSqlServer</span>(builder.Configuration.<span class="fn">GetConnectionString</span>(<span class="str">"Default"</span>)));</pre>
@@ -672,13 +685,16 @@ builder.Services.<span class="fn">AddDbContext</span>&lt;<span class="cls">AppDb
       <div style="font-size:0.7rem;font-weight:700;color:#8b949e;letter-spacing:0.08em;text-transform:uppercase;margin-top:20px;margin-bottom:8px;">③ Write the order of service</div>
       <pre>app.<span class="fn">UseExceptionHandler</span>();   <span class="cmt">// position 0 — outermost; must be first to catch exceptions from any middleware below</span>
 app.<span class="fn">UseHttpsRedirection</span>();   <span class="cmt">// position 1 — redirect HTTP → HTTPS before any work is done</span>
-app.<span class="fn">UseCors</span>(<span class="str">"MyPolicy"</span>);     <span class="cmt">// position 2 — add Access-Control headers; before auth so preflight OPTIONS requests aren't challenged</span>
-app.<span class="fn">UseAuthentication</span>();     <span class="cmt">// position 3 — WHO ARE YOU? verify JWT, decode claims, populate HttpContext.User</span>
-app.<span class="fn">UseRouting</span>();             <span class="cmt">// position 4 — match URL to an endpoint, attach route metadata to HttpContext</span>
-app.<span class="fn">UseAuthorization</span>();      <span class="cmt">// position 5 — ARE YOU ALLOWED? must follow UseAuthentication (needs identity) and UseRouting (needs endpoint policy metadata)</span>
-app.<span class="fn">MapControllers</span>();        <span class="cmt">// terminal — hands off to MVC; nothing registered after this line runs</span></pre>
+app.<span class="fn">UseStaticFiles</span>();        <span class="cmt">// position 2 — serve wwwroot files (JS, CSS, images) directly, short-circuits before MVC; must be before routing so static paths aren't matched as routes</span>
+app.<span class="fn">UseCors</span>(<span class="str">"MyPolicy"</span>);     <span class="cmt">// position 3 — add Access-Control headers; before auth so preflight OPTIONS requests aren't challenged</span>
+app.<span class="fn">UseRateLimiter</span>();        <span class="cmt">// position 4 — enforce request rate limits (.NET 7+); after CORS so OPTIONS preflights aren't counted; before auth to shed load early</span>
+app.<span class="fn">UseAuthentication</span>();     <span class="cmt">// position 5 — WHO ARE YOU? verify JWT, decode claims, populate HttpContext.User</span>
+app.<span class="fn">UseRouting</span>();             <span class="cmt">// position 6 — match URL to an endpoint, attach route metadata to HttpContext</span>
+app.<span class="fn">UseAuthorization</span>();      <span class="cmt">// position 7 — ARE YOU ALLOWED? must follow UseAuthentication (needs identity) and UseRouting (needs endpoint policy metadata)</span>
+app.<span class="fn">MapControllers</span>();        <span class="cmt">// registers MVC routes — matched requests are handled by MVC; unmatched requests continue down the pipeline</span></pre>
       <div class="callout callout-info" style="margin-top:10px;">
-        <strong>These don't run anything.</strong> Each <code>Use…()</code> call appends a delegate to a chain — you're declaring the order things fire when a request arrives, not executing them yet. The menu is written, the kitchen isn't open. Order is critical: <code>UseAuthentication</code> must come before <code>UseAuthorization</code> (you need to know who someone is before deciding what they're allowed to do), and both must come after <code>UseRouting</code> (authorization needs the endpoint's policy metadata to know which <code>[Authorize]</code> rules apply). <code>MapControllers()</code> is the terminal — it hands off to MVC and calls nothing after it, so any middleware added after this line is unreachable.
+        <strong>These don't run anything.</strong> Each <code>Use…()</code> call appends a delegate to a chain — you're declaring the order things fire when a request arrives, not executing them yet. The menu is written, the kitchen isn't open. Order is critical: <code>UseAuthentication</code> must come before <code>UseAuthorization</code> (you need to know who someone is before deciding what they're allowed to do), and both must come after <code>UseRouting</code> (authorization needs the endpoint's policy metadata to know which <code>[Authorize]</code> rules apply). <code>MapControllers()</code> registers MVC routes — requests that match a controller action are handled by MVC; requests that don't match continue down the pipeline (which is why you should add a fallback handler, e.g. <code>app.Run(ctx =&gt; { ctx.Response.StatusCode = 404; … })</code>, after it for unmatched requests).
+        <div style="margin-top:8px;"><strong>Note on <code>UseRouting()</code>:</strong> In .NET 6+ the framework inserts <code>UseRouting()</code> automatically when you call <code>MapControllers()</code>. The explicit call shown above is only needed when you place middleware between routing and execution — exactly the <code>UseAuthorization</code> case shown here, which needs to read endpoint metadata that routing has already resolved. In apps without that pattern you can omit the explicit call.</div>
       </div>
 
       <!-- ── BLOCK 4: Run ── -->
@@ -753,7 +769,7 @@ app.<span class="fn">MapControllers</span>();        <span class="cmt">// termin
 
       <!-- ══ 1. PIPELINE ORDER ══ -->
       <div style="font-size:0.78rem;color:#c9d1d9;margin-top:8px;line-height:2;">
-        <code>UseExceptionHandler</code> → <code>UseHttpsRedirection</code> → <code>UseCors</code> → <code>UseAuthentication</code> → <code>UseRouting</code> → <code>UseAuthorization</code> → <code>MapControllers</code>
+        <code>UseExceptionHandler</code> → <code>UseHttpsRedirection</code> → <code>UseStaticFiles</code> → <code>UseCors</code> → <code>UseRateLimiter</code> → <code>UseAuthentication</code> → <code>UseRouting</code> → <code>UseAuthorization</code> → <code>MapControllers</code>
       </div>
       <div class="callout callout-tip" style="margin-top:10px;margin-bottom:4px;">
         The order of courses declared in ① is now being served. Each middleware runs in sequence, pulling the dishes it needs off the menu — the items put on it by <code>Add…()</code> are being ordered for the first time.
@@ -802,6 +818,51 @@ app.<span class="fn">MapControllers</span>();        <span class="cmt">// termin
 
       <!-- ══ 3. DEEP DIVES ══ -->
       <div style="font-size:0.7rem;font-weight:700;color:#8b949e;letter-spacing:0.08em;text-transform:uppercase;margin-top:18px;margin-bottom:8px;">Deep dives</div>
+
+      <!-- ── UseStaticFiles ── -->
+      <div style="font-size:0.75rem;font-weight:700;color:#f0c25a;margin-bottom:8px;margin-top:4px;">UseStaticFiles — serving wwwroot directly</div>
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main">Short-circuits the pipeline for any request that matches a file in <code>wwwroot/</code> — the controller is never reached</div>
+            <div class="step-note">A request for <code>/js/app.js</code> is served directly from disk and the pipeline stops there. No authentication, no routing, no controller — just bytes from the file system. This is intentional: static assets are public by design. If you need to protect a static file, don't use <code>UseStaticFiles</code> for it — serve it from a controller action instead.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main">Must be placed before <code>UseRouting</code> so static paths aren't accidentally matched as routes</div>
+            <div class="step-note">If routing runs first, a route template like <code>{*path}</code> could intercept <code>/js/app.js</code> before the static file middleware sees it. Placing <code>UseStaticFiles</code> first means static files short-circuit before routing ever runs. It also means static file serving is faster — no route matching overhead for those requests.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── UseRateLimiter ── -->
+      <div style="font-size:0.75rem;font-weight:700;color:#f0c25a;margin-bottom:8px;margin-top:14px;">UseRateLimiter — throttling requests (.NET 7+)</div>
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main">Enforces rate limit policies — fixed window, sliding window, token bucket, or concurrency</div>
+            <div class="step-note">When the limit is hit the middleware returns <strong>429 Too Many Requests</strong> with a <code>Retry-After</code> header and short-circuits — no further middleware runs. This sheds load before authentication, deserialization, and DB calls happen, which is exactly when you want to stop a flood.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main">Placed after <code>UseCors</code> so preflight <code>OPTIONS</code> requests aren't counted against the limit</div>
+            <div class="step-note">CORS preflights are browser infrastructure — counting them would halve a client's effective quota for no reason. Placing rate limiting after CORS means only real requests are counted. It goes before authentication because the point is to protect the server, not just authenticated endpoints.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main">Apply a policy to a specific endpoint with <code>[EnableRateLimiting("fixed")]</code>, or globally in the limiter options</div>
+            <div class="step-note">Per-endpoint policies let you set tighter limits on sensitive routes (e.g. login, password reset) without throttling the whole API.</div>
+          </div>
+        </div>
+      </div>
 
       <!-- ── UseCors ── -->
       <div style="font-size:0.75rem;font-weight:700;color:#f0c25a;margin-bottom:8px;margin-top:4px;">UseCors — cross-domain requests</div>
@@ -864,8 +925,8 @@ app.<span class="fn">MapControllers</span>();        <span class="cmt">// termin
         <div class="row">
           <div class="step-num">3</div>
           <div class="step-content">
-            <div class="step-main">Does not normally short-circuit — it sets identity, while authorization decides access</div>
-            <div class="step-note">If credentials are missing, expired, or invalid, <code>HttpContext.User</code> is left as an anonymous principal with no identity attached — no claims, no name. The request continues. It's <code>UseAuthorization</code> that decides whether an anonymous or insufficiently-privileged user is allowed to proceed. Note: some authentication schemes can challenge or redirect in certain configurations, but the typical behaviour is to set identity and pass through.</div>
+            <div class="step-main">Behaviour is scheme-dependent — JWT Bearer passes through; cookie and OIDC schemes may redirect</div>
+            <div class="step-note">With <strong>JWT Bearer</strong>: if credentials are missing, expired, or invalid, <code>HttpContext.User</code> is left as an anonymous principal with no identity attached — no claims, no name. The request continues. It's <code>UseAuthorization</code> that decides whether an anonymous or insufficiently-privileged user is allowed to proceed. With <strong>cookie auth</strong> or <strong>OpenID Connect</strong>, the scheme may challenge immediately — redirecting to a login page or returning 401/403 — before authorization ever runs. The step-through-or-challenge behaviour is a property of each scheme, not of <code>UseAuthentication</code> itself.</div>
           </div>
         </div>
       </div>
@@ -1118,7 +1179,7 @@ app.<span class="fn">UseMiddleware</span>&lt;<span class="cls">RequestLoggingMid
 
       <!-- nesting diagram + per-filter explanation combined -->
       <div style="font-family:&#39;Cascadia Code&#39;,&#39;Fira Code&#39;,&#39;Consolas&#39;,monospace;font-size:0.72rem;line-height:1.9;color:#c9d1d9;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 18px;margin-bottom:14px;">
-        <span style="color:#ff7b72;">IExceptionFilter</span> <span style="color:#8b949e;">← catches anything thrown inside; set ExceptionHandled = true to suppress</span><br>
+        <span style="color:#ff7b72;">IExceptionFilter</span> <span style="color:#8b949e;">← catches exceptions from inside the MVC pipeline only (not middleware); set ExceptionHandled = true to suppress — see ⑪ for the full safety net</span><br>
         &nbsp;&nbsp;<span style="color:#f0c25a;">IAuthorizationFilter</span> <span style="color:#8b949e;">← [Authorize] lives here; 401/403 if denied, nothing below runs</span><br>
         &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f0c25a;">IResourceFilter</span> <span style="color:#8b949e;">← before model binding; short-circuit here to serve from cache</span><br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f0c25a;">IActionFilter.OnActionExecuting</span> <span style="color:#8b949e;">← inspect/modify arguments, or short-circuit</span><br>
@@ -1391,7 +1452,7 @@ builder.Services.<span class="fn">AddControllers</span>(o =&gt; o.Filters.<span 
         <div class="result-row err"><span class="result-code err">400</span><span><code>BadRequest(errors)</code></span><span class="result-fn err">BadRequestObjectResult</span></div>
         <div class="result-row err"><span class="result-code err">401</span><span><code>Unauthorized()</code></span><span class="result-fn err">UnauthorizedResult</span></div>
         <div class="result-row err"><span class="result-code err">403</span><span><code>Forbid()</code></span><span class="result-fn err">ForbidResult</span></div>
-        <div class="result-row err"><span class="result-code err">404</span><span><code>NotFound()</code></span><span class="result-fn err">NotFoundResult</span></div>
+        <div class="result-row err"><span class="result-code err">404</span><span><code>NotFound()</code> / <code>NotFound(detail)</code></span><span class="result-fn err">NotFoundResult / NotFoundObjectResult</span></div>
         <div class="result-row err"><span class="result-code err">4xx/5xx</span><span><code>Problem(…)</code></span><span class="result-fn err">ProblemDetails (RFC 7807)</span></div>
         <div class="result-row warn"><span class="result-code warn">any</span><span><code>StatusCode(418, body)</code></span><span class="result-fn warn">StatusCodeResult</span></div>
       </div>
@@ -1418,7 +1479,7 @@ builder.Services.<span class="fn">AddControllers</span>(o =&gt; o.Filters.<span 
           <div class="step-num">1</div>
           <div class="step-content">
             <div class="step-main"><code>ObjectResult</code> reads the <code>Accept</code> header to pick a formatter</div>
-            <div class="step-note"><code>Accept: application/json</code> → JSON formatter · <code>Accept: application/xml</code> → XML formatter (if registered) · no match → 406 Not Acceptable by default. You can suppress the 406 and fall back to JSON instead: <code>options.ReturnHttpNotAcceptable = false</code> in <code>AddControllers(o =&gt; …)</code>.</div>
+            <div class="step-note"><code>Accept: application/json</code> → JSON formatter · <code>Accept: application/xml</code> → XML formatter (only if registered via <code>AddXmlSerializerFormatters()</code> — not included by default) · no match → 406 Not Acceptable by default. You can suppress the 406 and fall back to JSON instead: <code>options.ReturnHttpNotAcceptable = false</code> in <code>AddControllers(o =&gt; …)</code>.</div>
           </div>
         </div>
         <div class="row">
@@ -1585,7 +1646,7 @@ app.<span class="fn">UseExceptionHandler</span>();               <span class="cm
           <div class="step-num">1</div>
           <div class="step-content">
             <div class="step-main">Response unwinds through the middleware chain in reverse order</div>
-            <div class="step-note">Each middleware runs the code <em>after</em> its <code>await next(context)</code> call — e.g. logging elapsed time, appending headers, compressing the body.</div>
+            <div class="step-note">Each middleware runs the code <em>after</em> its <code>await next(context)</code> call — the same delegates that ran on the way in now complete their continuations, from innermost outward. e.g. logging elapsed time, appending headers, compressing the body.</div>
           </div>
         </div>
         <div class="row">
