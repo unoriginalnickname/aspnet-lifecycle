@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EF Core Full Lifecycle</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 32px 24px 60px;
+    min-height: 100vh;
+  }
+  h1 {
+    text-align: center;
+    color: #7ee787;
+    font-size: 1rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #8b949e;
+    font-size: 0.78rem;
+    margin-bottom: 24px;
+  }
+
+  /* ── sticky TOC ── */
+  .toc {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(13,17,23,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid #21262d;
+    padding: 8px 0;
+    margin-bottom: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    justify-content: center;
+  }
+  .toc a {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .toc a:hover { opacity: 1; filter: brightness(1.2); }
+
+  /* design-time group */
+  .toc-ctx    { color: #f0c25a; border-color: #9e6a03; background: #2b1f08; }
+  .toc-model  { color: #79c0ff; border-color: #1f6feb; background: #1a1a2b; }
+  .toc-mig    { color: #ffa657; border-color: #f78166; background: #2b1e14; }
+  /* runtime group */
+  .toc-query  { color: #d2a8ff; border-color: #8957e5; background: #221a2c; }
+  .toc-ct     { color: #ff9bce; border-color: #bf4b8a; background: #2b1422; }
+  .toc-save   { color: #ff7b72; border-color: #da3633; background: #2b1a1a; }
+  .toc-rel    { color: #56d364; border-color: #2ea043; background: #182b1a; }
+  .toc-conc   { color: #e3b341; border-color: #d29922; background: #2b2218; }
+  .toc-raw    { color: #c8d564; border-color: #7c8c1e; background: #1e2208; }
+  .toc-int    { color: #b4b4ff; border-color: #6e40c9; background: #1c1a2b; }
+  .toc-conn   { color: #dba96e; border-color: #8a5a2a; background: #251808; }
+  .toc-perf   { color: #76e3ea; border-color: #1b7c83; background: #0e2022; }
+
+  /* ── era divider ── */
+  .era-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0 16px;
+  }
+  .era-divider::before,
+  .era-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #21262d;
+  }
+  .era-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .era-design  { color: #f0c25a; background: #2b2212; border: 1px solid #c9910a; }
+  .era-runtime { color: #d2a8ff; background: #221a2c; border: 1px solid #8957e5; }
+
+  /* ── layout ── */
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* ── phase banner ── */
+  .phase {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin-bottom: 0;
+  }
+  .phase-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 8px 6px;
+    border-radius: 8px 0 0 8px;
+    min-width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .phase-body {
+    flex: 1;
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    border: 1px solid transparent;
+    border-left: none;
+  }
+
+  /* phase colours — design-time */
+  .phase-ctx    .phase-label { background:#2b1f08; color:#f0c25a; }
+  .phase-ctx    .phase-body  { background:#1a1308; border-color:#9e6a03; }
+  .phase-model  .phase-label { background:#1a1a2b; color:#79c0ff; }
+  .phase-model  .phase-body  { background:#10101a; border-color:#1f6feb; }
+  .phase-mig    .phase-label { background:#2b1e14; color:#ffa657; }
+  .phase-mig    .phase-body  { background:#1a1208; border-color:#f78166; }
+  /* phase colours — runtime */
+  .phase-query  .phase-label { background:#221a2c; color:#d2a8ff; }
+  .phase-query  .phase-body  { background:#160f1e; border-color:#8957e5; }
+  .phase-ct     .phase-label { background:#2b1422; color:#ff9bce; }
+  .phase-ct     .phase-body  { background:#1a0d16; border-color:#bf4b8a; }
+  .phase-save   .phase-label { background:#2b1a1a; color:#ff7b72; }
+  .phase-save   .phase-body  { background:#1a0e0e; border-color:#da3633; }
+  .phase-rel    .phase-label { background:#182b1a; color:#56d364; }
+  .phase-rel    .phase-body  { background:#0e1a0e; border-color:#2ea043; }
+  .phase-conc   .phase-label { background:#2b2218; color:#e3b341; }
+  .phase-conc   .phase-body  { background:#1a1408; border-color:#d29922; }
+  .phase-raw    .phase-label { background:#1e2208; color:#c8d564; }
+  .phase-raw    .phase-body  { background:#141608; border-color:#7c8c1e; }
+  .phase-int    .phase-label { background:#1c1a2b; color:#b4b4ff; }
+  .phase-int    .phase-body  { background:#111118; border-color:#6e40c9; }
+  .phase-conn   .phase-label { background:#251808; color:#dba96e; }
+  .phase-conn   .phase-body  { background:#160f05; border-color:#8a5a2a; }
+  .phase-perf   .phase-label { background:#0e2022; color:#76e3ea; }
+  .phase-perf   .phase-body  { background:#081415; border-color:#1b7c83; }
+
+  /* connector arrow between phases */
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    color: #30363d;
+    font-size: 1.3rem;
+    position: relative;
+  }
+  .arrow::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: #30363d;
+    transform: translateX(-50%);
+  }
+  .arrow span {
+    background: #0d1117;
+    padding: 0 6px;
+    position: relative;
+    z-index: 1;
+    color: #8b949e;
+    font-size: 0.7rem;
+    font-style: italic;
+  }
+
+  /* ── inside phase ── */
+  .phase-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.08);
+    color: #8b949e;
+    letter-spacing: 0.06em;
+  }
+
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .row  { display: flex; align-items: flex-start; gap: 12px; }
+
+  .step-num {
+    font-size: 0.65rem;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    color: #8b949e;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-content { flex: 1; }
+  .step-main {
+    font-size: 0.82rem;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .step-note {
+    font-size: 0.72rem;
+    color: #8b949e;
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  code {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.78em;
+    background: rgba(255,255,255,0.07);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: #e6edf3;
+  }
+
+  /* ── code block ── */
+  pre {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.75rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin-top: 10px;
+    color: #e6edf3;
+    max-width: 100%;       /* prevents pre from exceeding its container */
+    min-width: 0;          /* prevents flex children from overflowing their container */
+    white-space: pre;      /* preserve indentation; overflow-x handles long lines */
+  }
+  table { max-width: 100%; }
+  .phase-body { min-width: 0; }
+  .kw  { color: #ff7b72; }
+  .cls { color: #79c0ff; }
+  .fn  { color: #d2a8ff; }
+  .str { color: #a5d6ff; }
+  .cmt { color: #8b949e; font-style: italic; }
+  .num { color: #f0c25a; }
+  .ann { color: #7ee787; }
+
+  /* ── cards ── */
+  .grid3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .card-title { font-size: 0.78rem; font-weight: 700; margin-bottom: 4px; }
+  .card-body  { font-size: 0.71rem; color: #8b949e; line-height: 1.5; }
+
+  /* ── warning/info callout ── */
+  .callout {
+    border-radius: 7px;
+    padding: 10px 14px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    margin-top: 10px;
+    border-left: 3px solid;
+  }
+  .callout-warn { background: #2b1a0a; border-color: #d29922; color: #e3b341; }
+  .callout-info { background: #0e1a2b; border-color: #1f6feb; color: #79c0ff; }
+  .callout-tip  { background: #0e1a10; border-color: #238636; color: #7ee787; }
+
+  /* ── sequence timeline ── */
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 8px;
+    border-left: 2px solid #30363d;
+    padding-left: 16px;
+    margin-left: 8px;
+  }
+  .tl-item {
+    position: relative;
+    padding: 5px 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: #c9d1d9;
+  }
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: -21px;
+    top: 11px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #30363d;
+  }
+  .tl-item.highlight::before { background: #7ee787; }
+  .tl-item.hl-orange::before { background: #f78166; }
+  .tl-item.hl-purple::before { background: #d2a8ff; }
+  .tl-item strong { color: #e6edf3; }
+  .tl-note { font-size: 0.7rem; color: #8b949e; margin-top: 2px; }
+
+  /* legend */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    justify-content: center;
+    margin-top: 32px;
+    font-size: 0.71rem;
+    color: #8b949e;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* ── scroll offset — keeps sticky TOC from covering anchor targets ── */
+  [id] { scroll-margin-top: 60px; }
+
+  /* ── mid-range breakpoint (tablet / narrow desktop) ── */
+  @media (max-width: 800px) {
+    pre { font-size: 0.7rem; padding: 12px 14px; }
+    .phase-body { padding: 12px 14px; }
+    .grid3 { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ── mobile ── */
+  @media (max-width: 600px) {
+    body { padding: 16px 12px 48px; }
+    .toc { gap: 3px 4px; }
+    .toc a { font-size: 0.62rem; padding: 2px 7px; }
+    .phase { flex-direction: column; }
+    .phase-label {
+      writing-mode: horizontal-tb;
+      text-orientation: mixed;
+      transform: none;
+      border-radius: 8px 8px 0 0;
+      min-width: unset;
+      width: 100%;
+      padding: 5px 12px;
+      font-size: 0.6rem;
+    }
+    /* On mobile the label moves to the top, so swap the border corners.
+       Avoid using the 'border' shorthand — it would override the per-phase
+       border-color set by .phase-X .phase-body rules.
+       Instead only touch what changes: radius and the top/left edges. */
+    .phase-body {
+      border-radius: 0 0 8px 8px;
+      border-left: 1px solid;   /* restore left border (was removed for sidebar layout) */
+      border-top: none;          /* remove top border (label is now the top element) */
+    }
+    .grid3 { grid-template-columns: 1fr; }
+    .grid4 { grid-template-columns: 1fr; }
+    pre { font-size: 0.65rem; padding: 10px 12px; }
+    table { font-size: 0.65rem !important; }
+    .step-main { font-size: 0.78rem; }
+    .step-note { font-size: 0.68rem; }
+  }
+
+  /* ── theme toggle button ── */
+  .theme-toggle {
+    position: fixed;
+    top: 12px;
+    right: 16px;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid #30363d;
+    border-radius: 20px;
+    padding: 5px 12px 5px 8px;
+    cursor: pointer;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #8b949e;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    transition: background 0.15s, border-color 0.15s;
+    user-select: none;
+  }
+  .theme-toggle:hover { background: rgba(255,255,255,0.1); border-color: #6e7681; color: #c9d1d9; }
+  .theme-toggle .toggle-track {
+    width: 28px; height: 16px;
+    border-radius: 8px;
+    background: #30363d;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .theme-toggle .toggle-thumb {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #8b949e;
+    position: absolute;
+    top: 2px; left: 2px;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .theme-toggle.active .toggle-track { background: #238636; }
+  .theme-toggle.active .toggle-thumb { transform: translateX(12px); background: #7ee787; }
+  .theme-toggle.active { color: #7ee787; border-color: #238636; }
+
+  /* ── classic dark theme — no gray, white text, black backgrounds ── */
+  body.classic {
+    background: #0c0c0c;
+    color: #f5f5f5;
+  }
+  body.classic .toc {
+    background: rgba(12,12,12,0.98);
+    border-bottom-color: #1e1e1e;
+  }
+  body.classic .toc-ctx,
+  body.classic .toc-model,
+  body.classic .toc-mig,
+  body.classic .toc-query,
+  body.classic .toc-ct,
+  body.classic .toc-save,
+  body.classic .toc-rel,
+  body.classic .toc-conc,
+  body.classic .toc-raw,
+  body.classic .toc-int,
+  body.classic .toc-conn,
+  body.classic .toc-perf {
+    color: #e0e0e0; border-color: #2a2a2a; background: #141414;
+  }
+  body.classic .toc a:hover { color: #ffffff; border-color: #4ec9b0; background: #1a1a1a; }
+
+
+  body.classic .phase-req     .phase-label { background:#0e0e0e; color:#9cdcfe; }
+  body.classic .phase-req     .phase-body  { background:#0a0a0a; border-color:#1e3a5a; }
+  body.classic .phase-mw      .phase-label { background:#0e0e0e; color:#dcdcaa; }
+  body.classic .phase-mw      .phase-body  { background:#0a0a0a; border-color:#4a4a1a; }
+  body.classic .phase-route   .phase-label { background:#0e0e0e; color:#9cdcfe; }
+  body.classic .phase-route   .phase-body  { background:#0a0a0a; border-color:#1e3a5a; }
+  body.classic .phase-di      .phase-label { background:#0e0e0e; color:#f5f5f5; }
+  body.classic .phase-di      .phase-body  { background:#0a0a0a; border-color:#2a2a2a; }
+  body.classic .phase-filters .phase-label { background:#0e0e0e; color:#ce9178; }
+  body.classic .phase-filters .phase-body  { background:#0a0a0a; border-color:#4a2818; }
+  body.classic .phase-action  .phase-label { background:#0e0e0e; color:#c586c0; }
+  body.classic .phase-action  .phase-body  { background:#0a0a0a; border-color:#3a1e4a; }
+
+  body.classic .phase-result  .phase-label { background:#0e0e0e; color:#f48771; }
+  body.classic .phase-result  .phase-body  { background:#0a0a0a; border-color:#4a1e1e; }
+  body.classic .phase-serial  .phase-label { background:#0e0e0e; color:#dcdcaa; }
+  body.classic .phase-serial  .phase-body  { background:#0a0a0a; border-color:#4a4a1a; }
+
+  body.classic .phase-err     .phase-label { background:#0e0e0e; color:#f48771; }
+  body.classic .phase-err     .phase-body  { background:#0a0a0a; border-color:#4a1e1e; }
+
+  body.classic .phase-ctx   .phase-label { background:#0e0e0e; color:#dcdcaa; }
+  body.classic .phase-ctx   .phase-body  { background:#0a0a0a; border-color:#4a4a1a; }
+  body.classic .phase-model   .phase-label { background:#0e0e0e; color:#9cdcfe; }
+  body.classic .phase-model   .phase-body  { background:#0a0a0a; border-color:#1e3a5a; }
+  body.classic .phase-mig   .phase-label { background:#0e0e0e; color:#ce9178; }
+  body.classic .phase-mig   .phase-body  { background:#0a0a0a; border-color:#4a2818; }
+  body.classic .phase-query   .phase-label { background:#0e0e0e; color:#c586c0; }
+  body.classic .phase-query   .phase-body  { background:#0a0a0a; border-color:#3a1e4a; }
+  body.classic .phase-ct   .phase-label { background:#0e0e0e; color:#f48771; }
+  body.classic .phase-ct   .phase-body  { background:#0a0a0a; border-color:#4a1e1e; }
+  body.classic .phase-save   .phase-label { background:#0e0e0e; color:#f48771; }
+  body.classic .phase-save   .phase-body  { background:#0a0a0a; border-color:#4a1e1e; }
+  body.classic .phase-rel   .phase-label { background:#0e0e0e; color:#4ec9b0; }
+  body.classic .phase-rel   .phase-body  { background:#0a0a0a; border-color:#1e4a3e; }
+  body.classic .phase-conc   .phase-label { background:#0e0e0e; color:#dcdcaa; }
+  body.classic .phase-conc   .phase-body  { background:#0a0a0a; border-color:#4a4a1a; }
+  body.classic .phase-raw   .phase-label { background:#0e0e0e; color:#b5cea8; }
+  body.classic .phase-raw   .phase-body  { background:#0a0a0a; border-color:#2a3a1e; }
+  body.classic .phase-int   .phase-label { background:#0e0e0e; color:#c586c0; }
+  body.classic .phase-int   .phase-body  { background:#0a0a0a; border-color:#3a1e4a; }
+  body.classic .phase-conn   .phase-label { background:#0e0e0e; color:#ce9178; }
+  body.classic .phase-conn   .phase-body  { background:#0a0a0a; border-color:#4a2818; }
+  body.classic .phase-perf   .phase-label { background:#0e0e0e; color:#9cdcfe; }
+  body.classic .phase-perf   .phase-body  { background:#0a0a0a; border-color:#1e3a5a; }
+
+  body.classic .arrow::before { background: #1e1e1e; }
+  body.classic .arrow span { background: #0c0c0c; color: #555; }
+
+  body.classic pre {
+    background: #0e0e0e;
+    border-color: #1e1e1e;
+    color: #f5f5f5;
+  }
+  body.classic code {
+    background: rgba(255,255,255,0.08);
+    color: #f5f5f5;
+  }
+  body.classic .badge { background: rgba(255,255,255,0.08); color: #e0e0e0; }
+  body.classic .step-note { color: #e0e0e0; }
+  body.classic .step-main { color: #f5f5f5; }
+  body.classic .phase-title { color: #f5f5f5; }
+  body.classic .card { background: #0e0e0e; border-color: #1e1e1e; }
+  body.classic .card-body { color: #e0e0e0; }
+  body.classic .callout-warn { background: #141200; border-color: #dcdcaa; color: #f5f5f5; }
+  body.classic .callout-info { background: #00080e; border-color: #9cdcfe; color: #f5f5f5; }
+  body.classic .callout-tip  { background: #001210; border-color: #4ec9b0; color: #f5f5f5; }
+  body.classic .result-row   { background: #0e0e0e; border-color: #1e1e1e; color: #f5f5f5; }
+  body.classic .ok            { color: #4ec9b0; }
+  body.classic .warn          { color: #dcdcaa; }
+  body.classic .err           { color: #f48771; }
+  body.classic .result-code.ok   { color: #4ec9b0; }
+  body.classic .result-code.warn { color: #dcdcaa; }
+  body.classic .result-code.err  { color: #f48771; }
+  body.classic .result-fn.ok     { color: #4ec9b0; }
+  body.classic .legend { color: #e0e0e0; }
+  body.classic h1 { color: #4ec9b0; }
+  body.classic .subtitle { color: #e0e0e0; }
+  body.classic .kw  { color: #569cd6; }
+  body.classic .cls { color: #4ec9b0; }
+  body.classic .fn  { color: #dcdcaa; }
+  body.classic .str { color: #ce9178; }
+  body.classic .cmt { color: #6a9955; font-style: italic; }
+  body.classic .num { color: #b5cea8; }
+  body.classic .ann { color: #c586c0; }
+  body.classic .tl-item { color: #e0e0e0; }
+  body.classic .tl-item strong { color: #f5f5f5; }
+  body.classic .tl-item::before { background: #2a2a2a; }
+  body.classic .timeline { border-left-color: #1e1e1e; }
+  body.classic .filter-box { border-color: #2a2a2a !important; background: #0e0e0e !important; color: #e0e0e0 !important; }
+  body.classic .filter-arrow { color: #2a2a2a; }
+  body.classic table th { color: #e0e0e0; }
+  body.classic table td { color: #f5f5f5; }
+  body.classic .singleton { border-color: #1e4a3e; }
+  body.classic .scoped    { border-color: #1e3a5a; }
+  body.classic .transient { border-color: #3a1e4a; }
+  body.classic .singleton .card-title { color: #4ec9b0; }
+  body.classic .scoped    .card-title { color: #9cdcfe; }
+  body.classic .transient .card-title { color: #c586c0; }
+  body.classic .theme-toggle { background: rgba(255,255,255,0.05); border-color: #1e1e1e; }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Switch theme">
+  <div class="toggle-track"><div class="toggle-thumb"></div></div>
+  <span id="themeLabel">Light</span>
+</button>
+
+<h1>Entity Framework Core — Full Lifecycle</h1>
+<p class="subtitle">From model definition to SQL on the wire · design-time · migrations · query pipeline · change tracking · SaveChanges · relationships · concurrency · raw SQL · interceptors · transactions · performance</p>
+<!-- EDITING NOTE: update the date below whenever this file is changed -->
+<p class="subtitle" id="last-updated" style="margin-top:4px; font-size:0.7rem;">Last updated 10 Jun 2026</p>
+
+<!-- ── STICKY TABLE OF CONTENTS ── -->
+<nav class="toc">
+  <a class="toc-ctx" href="#ctx">① DbContext</a>
+  <a class="toc-model" href="#model">② Model</a>
+  <a class="toc-mig" href="#migrations">③ Migrations</a>
+  <a class="toc-query" href="#query">④ Query</a>
+  <a class="toc-ct" href="#ct">⑤ Change Tracker</a>
+  <a class="toc-save" href="#save">⑥ SaveChanges</a>
+  <a class="toc-rel" href="#relationships">⑦ Relationships</a>
+  <a class="toc-conc" href="#concurrency">⑧ Concurrency</a>
+  <a class="toc-raw" href="#raw">⑨ Raw SQL</a>
+  <a class="toc-int" href="#interceptors">⑩ Interceptors</a>
+  <a class="toc-conn" href="#connections">⑪ Connections</a>
+  <a class="toc-perf" href="#perf">⑫ Performance</a>
+</nav>
+
+<div class="page">
+
+  <!-- ══════════════════════════════════════════════
+       ERA DIVIDER — DESIGN-TIME
+  ═══════════════════════════════════════════════════ -->
+  <div class="era-divider">
+    <span class="era-label era-design">🔧 Design-Time — runs once at development / deployment</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       ① DbContext SETUP
+  ═══════════════════════════════════════════════════ -->
+  <div id="ctx" class="phase phase-ctx">
+    <div class="phase-label">① DbContext</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>📦 DbContext — gateway between your code and the database</span>
+        <span class="badge">class: design-time · instance: per-scope</span>
+      </div>
+
+      <div class="callout callout-info" style="margin-bottom:12px;">
+        <strong>DbContext is two things at once.</strong> The <em>class</em> you define holds configuration, <code>DbSet&lt;T&gt;</code> properties, and Fluent API mappings — written once, compiled once on first instantiation. The <em>instance</em> resolved per scope holds the Change Tracker, the open connection, and the in-flight Unit of Work. These lifetimes are completely different. Confusing them — especially registering as Singleton — is the source of most DbContext bugs.
+      </div>
+
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main">Inherit <code>DbContext</code> and expose <code>DbSet&lt;T&gt;</code> properties — one per entity aggregate root</div>
+            <div class="step-note">EF uses <code>DbSet&lt;T&gt;</code> as the LINQ entry point for queries and the anchor for change tracking. You don't need a <code>DbSet</code> for every entity — related entities reachable via navigation properties (e.g. <code>Post.Comments</code>) are discovered automatically. Only aggregate roots need their own set.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main">Override <code>OnModelCreating</code> to apply Fluent API configuration, or leave it empty and rely on conventions and annotations</div>
+            <div class="step-note">This is where the model is <em>described</em>. EF reads it on first instantiation — in web apps this is typically the first request — compiles it into an immutable cache, and reuses that cache for every subsequent instance. See ② Model for the full pipeline.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main">Register with <code>AddDbContext&lt;T&gt;</code> in <code>Program.cs</code>, specifying provider and connection string</div>
+            <div class="step-note">Always <strong>Scoped</strong> (the default) — one instance per scope, disposed when the scope ends. Singleton silently corrupts data by sharing the Change Tracker across concurrent requests. Transient wastes connection pool slots and breaks batching across services. For non-web tools, CLIs, or tests, use <code>OnConfiguring</code> instead — it configures the context directly without a DI container.</div>
+          </div>
+        </div>
+      </div>
+
+<pre><span class="cmt">// ── App path — DI-registered, Scoped (web apps, APIs) ──────────────────────</span>
+<span class="kw">public class</span> <span class="cls">AppDbContext</span> : <span class="cls">DbContext</span>
+{
+    <span class="cmt">// Aggregate roots only — comment entities reached via Post.Comments need no DbSet</span>
+    <span class="kw">public</span> <span class="cls">DbSet</span>&lt;<span class="cls">User</span>&gt; Users { <span class="kw">get</span>; <span class="kw">set</span>; } = <span class="kw">null</span>!;
+    <span class="kw">public</span> <span class="cls">DbSet</span>&lt;<span class="cls">Post</span>&gt; Posts { <span class="kw">get</span>; <span class="kw">set</span>; } = <span class="kw">null</span>!;
+
+    <span class="kw">public</span> <span class="fn">AppDbContext</span>(<span class="cls">DbContextOptions</span>&lt;<span class="cls">AppDbContext</span>&gt; options) : <span class="kw">base</span>(options) { }
+
+    <span class="kw">protected override void</span> <span class="fn">OnModelCreating</span>(<span class="cls">ModelBuilder</span> mb)
+    {
+        <span class="cmt">// Fluent API configuration — see ② Model</span>
+        <span class="cmt">// Called on first instantiation; result cached for app lifetime</span>
+    }
+
+    <span class="cmt">// ── Tool / CLI / test path — OnConfiguring, no DI container needed ─────</span>
+    <span class="cmt">// IsConfigured guard ensures this is skipped when AddDbContext already ran</span>
+    <span class="kw">protected override void</span> <span class="fn">OnConfiguring</span>(<span class="cls">DbContextOptionsBuilder</span> ob)
+    {
+        <span class="kw">if</span> (!ob.IsConfigured)
+        {
+            <span class="cmt">// Read from environment variable — never hardcode a connection string</span>
+            <span class="cmt">// Double underscore (__) is the ASP.NET Core convention for nested config keys</span>
+            <span class="cmt">// e.g. Azure App Service → ConnectionStrings__Default maps to ConnectionStrings:Default</span>
+            <span class="kw">var</span> cs = <span class="cls">Environment</span>.<span class="fn">GetEnvironmentVariable</span>(<span class="str">"ConnectionStrings__Default"</span>)
+                     ?? <span class="kw">throw new</span> <span class="cls">InvalidOperationException</span>(<span class="str">"Connection string not set"</span>);
+            ob.<span class="fn">UseSqlServer</span>(cs);
+        }
+    }
+}
+
+<span class="cmt">// In Program.cs — before builder.Build():</span>
+builder.Services.<span class="fn">AddDbContext</span>&lt;<span class="cls">AppDbContext</span>&gt;(o =&gt;
+    o.<span class="fn">UseSqlServer</span>(builder.Configuration.<span class="fn">GetConnectionString</span>(<span class="str">"Default"</span>)));
+
+<span class="cmt">// For MVC projects, also register controllers and views:</span>
+builder.Services.<span class="fn">AddControllersWithViews</span>();   <span class="cmt">// registers controllers, views, and Razor</span>
+
+<span class="kw">var</span> app = builder.<span class="fn">Build</span>();
+
+<span class="cmt">// … UseStaticFiles, UseRouting, UseAuthentication, UseAuthorization …</span>
+
+app.<span class="fn">MapControllerRoute</span>(                        <span class="cmt">// wire up conventional MVC routing</span>
+    name: <span class="str">"default"</span>,
+    pattern: <span class="str">"{controller=Home}/{action=Index}/{id?}"</span>);</pre>
+
+      <div class="callout callout-tip" style="margin-top:10px;">
+        💡 <strong>MVC projects need <code>AddControllersWithViews()</code></strong> — it's not included in <code>AddDbContext</code> and easy to miss when setting up EF Core outside a template. Without it you'll get 404s on all controller routes even though the DbContext is registered correctly. Web API projects (controllers, no views) use <code>AddControllers()</code>; Razor Pages projects use <code>AddRazorPages()</code>; Minimal API projects use neither — they map endpoints directly with <code>app.MapGet()</code> etc. Only <code>AddControllersWithViews()</code> enables both controller routing and <code>.cshtml</code> view rendering.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow"><span>EF reads entity classes → builds in-memory model graph</span></div>
+
+  <!-- ══════════════════════════════════════════════
+       ② MODEL BUILDING
+  ═══════════════════════════════════════════════════ -->
+  <div id="model" class="phase phase-model">
+    <div class="phase-label">② Model</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>🗺️ Model Building — entities, relationships, constraints</span>
+        <span class="badge">conventions → annotations → Fluent API · each layer wins over the last</span>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main">EF discovers entities via <code>DbSet</code> properties and reachable navigation properties, then applies conventions</div>
+            <div class="step-note">Conventions handle the common cases automatically: <code>Id</code> or <code>{ClassName}Id</code> (e.g. <code>UserId</code>) → primary key; with NRT enabled (default in .NET 6+) <code>string</code> → <code>NOT NULL nvarchar(max)</code> and <code>string?</code> → nullable <code>nvarchar(max)</code>; navigation properties → foreign keys inferred from naming.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main">Data Annotations override conventions inline on the entity class</div>
+            <div class="step-note">Standard annotations (<code>System.ComponentModel.DataAnnotations</code>): <code>[Required]</code>, <code>[MaxLength]</code>, <code>[Column]</code>, <code>[Table]</code>. EF Core-specific annotations (<code>Microsoft.EntityFrameworkCore</code>): <code>[Index]</code>, <code>[Precision]</code>, <code>[Unicode]</code>. Convenient for simple constraints but mixes persistence concerns into the domain model — prefer Fluent API for anything non-trivial.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main">Fluent API in <code>OnModelCreating</code> has the final word — overrides both conventions and annotations</div>
+            <div class="step-note"><strong>Priority: Fluent API &gt; Annotations &gt; Conventions.</strong> Preferred for composite keys, owned entities (<code>OwnsOne</code> / <code>OwnsMany</code>), table splitting, TPH/TPT inheritance, and anything where you want persistence config kept out of the domain class. Use <code>IEntityTypeConfiguration&lt;T&gt;</code> to split large models into one file per entity.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-main">Global query filters — declared via <code>HasQueryFilter()</code> in <code>OnModelCreating</code>, silently appended to every LINQ query for that entity type</div>
+            <div class="step-note">The right place for multi-tenancy (<code>WHERE TenantId = @current</code>) and soft deletes (<code>WHERE IsDeleted = 0</code>). Override per-query with <code>.IgnoreQueryFilters()</code>. Note: filters do <em>not</em> apply to raw SQL or hand-written JOINs outside EF.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <div class="step-main">On first <code>DbContext</code> instantiation, EF compiles the completed model into an immutable cache — this is the design-time/runtime boundary</div>
+            <div class="step-note">Subsequent instantiations reuse the cached model at near-zero cost. On large models this first-instantiation cost is measurable — use <code>UseModel()</code> with a pre-compiled static model to eliminate it entirely.</div>
+          </div>
+        </div>
+      </div>
+<pre><span class="cmt">// ── Entity classes — conventions + annotations ──────────────────────────────</span>
+<span class="kw">public class</span> <span class="cls">User</span>
+{
+    <span class="kw">public int</span>    Id        { <span class="kw">get</span>; <span class="kw">set</span>; }                    <span class="cmt">// convention → PK (Id or UserId)</span>
+    <span class="ann">[Required, MaxLength(100)]</span>
+    <span class="kw">public string</span> Name      { <span class="kw">get</span>; <span class="kw">set</span>; } = <span class="kw">null</span>!;           <span class="cmt">// NOT NULL nvarchar(100)</span>
+    <span class="kw">public bool</span>   IsDeleted { <span class="kw">get</span>; <span class="kw">set</span>; }                    <span class="cmt">// used by global query filter (step 4)</span>
+    <span class="kw">public</span> <span class="cls">List</span>&lt;<span class="cls">Post</span>&gt; Posts { <span class="kw">get</span>; <span class="kw">set</span>; } = [];            <span class="cmt">// nav property → EF infers FK on Post</span>
+}
+
+<span class="kw">public class</span> <span class="cls">Post</span>
+{
+    <span class="kw">public int</span>    Id       { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="kw">public string</span> Title    { <span class="kw">get</span>; <span class="kw">set</span>; } = <span class="kw">null</span>!;
+    <span class="kw">public int</span>    AuthorId { <span class="kw">get</span>; <span class="kw">set</span>; }                    <span class="cmt">// convention → FK to User</span>
+    <span class="kw">public</span> <span class="cls">User</span>   Author   { <span class="kw">get</span>; <span class="kw">set</span>; } = <span class="kw">null</span>!;           <span class="cmt">// nav property back to User</span>
+}
+
+<span class="cmt">// ── Fluent API — in AppDbContext.OnModelCreating ─────────────────────────────</span>
+<span class="kw">protected override void</span> <span class="fn">OnModelCreating</span>(<span class="cls">ModelBuilder</span> mb)
+{
+    mb.<span class="fn">Entity</span>&lt;<span class="cls">User</span>&gt;(b =&gt;
+    {
+        b.<span class="fn">ToTable</span>(<span class="str">"users"</span>);
+        b.<span class="fn">HasIndex</span>(u =&gt; u.Name).<span class="fn">IsUnique</span>();
+        b.<span class="fn">HasQueryFilter</span>(u =&gt; !u.IsDeleted);        <span class="cmt">// step 4 — appended to every User query</span>
+        b.<span class="fn">HasMany</span>(u =&gt; u.Posts)
+         .<span class="fn">WithOne</span>(p =&gt; p.Author)
+         .<span class="fn">HasForeignKey</span>(p =&gt; p.AuthorId)
+         .<span class="fn">OnDelete</span>(<span class="cls">DeleteBehavior</span>.Cascade);
+    });
+}</pre>
+      <div class="callout callout-tip">
+        💡 <strong>Large models:</strong> instead of growing <code>OnModelCreating</code>, implement <code>IEntityTypeConfiguration&lt;T&gt;</code> — one class per entity in its own file — then register everything with a single call: <code>mb.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly)</code>.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow"><span>dotnet ef migrations add → diffs model against snapshot</span></div>
+
+  <!-- ══════════════════════════════════════════════
+       ③ MIGRATIONS
+  ═══════════════════════════════════════════════════ -->
+  <div id="migrations" class="phase phase-mig">
+    <div class="phase-label">③ Migrations</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>🔄 Migrations — version control for your database schema</span>
+        <span class="badge">scaffold · add · update · remove · script · bundle</span>
+      </div>
+
+      <div class="callout callout-info" style="margin-bottom:12px;">
+        <strong>What a migration actually is:</strong> EF diffs your current model against <code>AppDbContextModelSnapshot.cs</code> — a C# representation of the last known schema state — and generates the delta as a C# file with <code>Up()</code> and <code>Down()</code> methods. The generated files (<code>&lt;timestamp&gt;_&lt;Name&gt;.cs</code>, <code>&lt;timestamp&gt;_&lt;Name&gt;.Designer.cs</code>, and the updated snapshot) all go into source control. The database is never read during generation.<br><br>
+        <strong>Prerequisite — install the EF CLI tool once per machine:</strong> <code>dotnet tool install --global dotnet-ef</code>. Verify with <code>dotnet ef --version</code>. If you get <em>"dotnet: unknown command 'ef'"</em> this is why. Pin the version to match your EF Core package: <code>dotnet tool install --global dotnet-ef --version 8.0.10</code> (replace with your exact EF Core version).
+      </div>
+
+      <div class="callout callout-tip" style="margin-bottom:12px;">
+        <strong>Two workflows — choose one per project:</strong><br><br>
+        <strong>Code-first</strong> (steps 1–4 below) — you define C# classes, EF generates migrations, migrations drive the schema. The source of truth is your code.<br><br>
+        <strong>Database-first / scaffold</strong> (step 0 below) — the database already exists; EF reverse-engineers it into C# classes and a <code>DbContext</code>. The source of truth is the database. You can re-scaffold at any time to pick up schema changes.
+      </div>
+
+      <div style="font-size:0.7rem;font-weight:700;color:#8b949e;letter-spacing:0.08em;text-transform:uppercase;margin:14px 0 8px;">Database-first — reverse-engineer an existing schema</div>
+
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">0</div>
+          <div class="step-content">
+            <div class="step-main"><strong>Database-first:</strong> <code>dotnet ef dbcontext scaffold</code> — reverse-engineer an existing database into entity classes and a <code>DbContext</code></div>
+            <div class="step-note">Reads the live database schema and generates one C# class per table plus a <code>DbContext</code> with all mappings pre-configured. Use <code>-o</code> to set the output folder, <code>-c</code> to name the context, <code>--data-annotations</code> to prefer attributes over fluent API, and <code>--no-onconfiguring</code> (EF Core 7 and below) / <code>--no-OnConfiguring</code> (EF Core 8+) to skip writing the connection string into the context — recommended, keep connection strings out of source control. Re-run with <code>--force</code> to overwrite when the schema changes. <strong>Tip:</strong> after the initial scaffold, consider switching to code-first for ongoing changes — the scaffold gives you the starting point, migrations take it forward.</div>
+          </div>
+        </div>
+      </div>
+
+<pre><span class="cmt"># ── Database-first scaffold — reverse-engineer an existing SQL Server database ──</span>
+<span class="cmt"># Run from the project directory. Each flag explained below.</span>
+<span class="cmt"># Read the connection string from an env var — never hardcode in scripts.</span>
+<span class="cmt"># Set it first:  export DB_CONN="Server=(localdb)\MSSQLLocalDB;Database=OrderDb;Trusted_Connection=True;TrustServerCertificate=True;"</span>
+
+dotnet ef dbcontext scaffold \
+    "$DB_CONN" \
+    Microsoft.EntityFrameworkCore.SqlServer \
+    -o Models \
+    -c OrderDbContext \
+    --no-onconfiguring \
+    --data-annotations
+
+<span class="cmt"># -o Models               output folder for generated entity classes</span>
+<span class="cmt"># -c OrderDbContext       name of the generated DbContext class</span>
+<span class="cmt"># --no-onconfiguring      don't embed the connection string in OnConfiguring()</span>
+<span class="cmt">#                         EF Core 8+ renamed this: --no-OnConfiguring (capital O and C)</span>
+<span class="cmt"># --data-annotations      use [Key],[Required] etc. instead of pure fluent API</span>
+<span class="cmt">#</span>
+<span class="cmt"># Re-scaffold after schema changes — overwrites generated files:</span>
+<span class="cmt"># dotnet ef dbcontext scaffold "$DB_CONN" ... --force</span>
+<span class="cmt"># Keep custom logic in partial classes so --force doesn't wipe it.</span></pre>
+
+<pre><span class="cmt">// ── What gets generated — example output for an Orders + OrderLines schema ──</span>
+<span class="kw">public partial class</span> <span class="cls">Order</span>
+{
+    <span class="ann">[Key]</span>
+    <span class="kw">public int</span>      Id          { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="ann">[Required]</span>
+    <span class="ann">[StringLength(100)]</span>
+    <span class="kw">public string</span>   CustomerRef { <span class="kw">get</span>; <span class="kw">set</span>; } = <span class="kw">null</span>!;
+    <span class="kw">public decimal</span>  Total       { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="kw">public DateTime</span> PlacedAt    { <span class="kw">get</span>; <span class="kw">set</span>; }
+
+    <span class="kw">public virtual</span> <span class="cls">ICollection</span>&lt;<span class="cls">OrderLine</span>&gt; OrderLines { <span class="kw">get</span>; <span class="kw">set</span>; } = [];
+}
+
+<span class="kw">public partial class</span> <span class="cls">OrderLine</span>
+{
+    <span class="ann">[Key]</span>
+    <span class="kw">public int</span>     Id       { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="kw">public int</span>     OrderId  { <span class="kw">get</span>; <span class="kw">set</span>; }  <span class="cmt">// FK — referenced in OnModelCreating</span>
+    <span class="ann">[Required]</span>
+    <span class="ann">[StringLength(200)]</span>
+    <span class="kw">public string</span>  Sku      { <span class="kw">get</span>; <span class="kw">set</span>; } = <span class="kw">null</span>!;
+    <span class="kw">public decimal</span> Price    { <span class="kw">get</span>; <span class="kw">set</span>; }
+
+    <span class="kw">public virtual</span> <span class="cls">Order</span>  Order   { <span class="kw">get</span>; <span class="kw">set</span>; } = <span class="kw">null</span>!;
+}
+
+<span class="cmt">// The generated OrderDbContext — constructor required when --no-onconfiguring is used</span>
+<span class="kw">public partial class</span> <span class="cls">OrderDbContext</span> : <span class="cls">DbContext</span>
+{
+    <span class="kw">public</span> <span class="fn">OrderDbContext</span>(<span class="cls">DbContextOptions</span>&lt;<span class="cls">OrderDbContext</span>&gt; options) : <span class="kw">base</span>(options) { }
+
+    <span class="kw">public</span> <span class="cls">DbSet</span>&lt;<span class="cls">Order</span>&gt;     Orders     { <span class="kw">get</span>; <span class="kw">set</span>; } = <span class="kw">null</span>!;
+    <span class="kw">public</span> <span class="cls">DbSet</span>&lt;<span class="cls">OrderLine</span>&gt; OrderLines { <span class="kw">get</span>; <span class="kw">set</span>; } = <span class="kw">null</span>!;
+
+    <span class="kw">protected override void</span> <span class="fn">OnModelCreating</span>(<span class="cls">ModelBuilder</span> mb)
+    {
+        mb.<span class="fn">Entity</span>&lt;<span class="cls">Order</span>&gt;(b =&gt; {
+            b.<span class="fn">Property</span>(o =&gt; o.Total).<span class="fn">HasColumnType</span>(<span class="str">"decimal(18,2)"</span>);
+            b.<span class="fn">HasMany</span>(o =&gt; o.OrderLines)
+             .<span class="fn">WithOne</span>(l =&gt; l.Order)
+             .<span class="fn">HasForeignKey</span>(l =&gt; l.OrderId);
+        });
+    }
+}</pre>
+
+      <div style="font-size:0.7rem;font-weight:700;color:#8b949e;letter-spacing:0.08em;text-transform:uppercase;margin:14px 0 8px;">Code-first — define models in C#, let EF own the schema</div>
+
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main"><code>dotnet ef migrations add &lt;Name&gt;</code> — generate a migration from the current model diff; edit <code>Up()</code> and <code>Down()</code> freely before applying</div>
+            <div class="step-note">Creates <code>&lt;timestamp&gt;_&lt;Name&gt;.cs</code> (the migration), <code>&lt;timestamp&gt;_&lt;Name&gt;.Designer.cs</code> (EF metadata), and updates <code>AppDbContextModelSnapshot.cs</code> (the new baseline). Name should describe the change — <code>AddUserNameIndex</code>, <code>CreateOrdersTable</code>.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main"><code>dotnet ef database update</code> — apply pending migrations to the configured database</div>
+            <div class="step-note">EF checks <code>__EFMigrationsHistory</code> first and skips already-applied migrations. Safe to run repeatedly. For local development, roll back to a specific migration with <code>dotnet ef database update &lt;MigrationName&gt;</code> — this calls <code>Down()</code> on everything after it. Do not use this as a production rollback strategy.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main"><code>dotnet ef migrations remove</code> — delete the last migration if it hasn't been applied yet</div>
+            <div class="step-note">Safe escape hatch when you generated a migration and then changed your mind. Fails if the migration has already been applied — use <code>dotnet ef database update &lt;PreviousMigration&gt;</code> first to roll back, then remove.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-main">Choose a deployment strategy — how migrations reach production matters as much as writing them</div>
+            <div class="step-note"><strong>MigrateAsync() at startup</strong> — simple, good for single-instance containers; dangerous with multiple instances racing on boot. Mitigate with a distributed lock (<code>IDistributedLock</code> via Medallion.Threading or similar) or run migrations as a separate Kubernetes init-container / ECS task before the app starts. <strong>SQL script</strong> (<code>dotnet ef migrations script</code>) — generate idempotent SQL, review it, hand to a DBA or run in a pipeline; safest for production. <strong>Migration bundle</strong> (<code>dotnet ef migrations bundle</code>) — self-contained executable, recommended for CI/CD pipelines; runs migrations without the full app or EF tooling installed.</div>
+          </div>
+        </div>
+      </div>
+
+<pre><span class="cmt">// ── Generated migration — edit Up() and Down() freely before applying ───────</span>
+<span class="kw">public partial class</span> <span class="cls">AddUserNameIndex</span> : <span class="cls">Migration</span>
+{
+    <span class="kw">protected override void</span> <span class="fn">Up</span>(<span class="cls">MigrationBuilder</span> mb)
+    {
+        mb.<span class="fn">CreateIndex</span>(name: <span class="str">"IX_users_Name"</span>, table: <span class="str">"users"</span>, column: <span class="str">"Name"</span>, unique: <span class="kw">true</span>);
+    }
+
+    <span class="kw">protected override void</span> <span class="fn">Down</span>(<span class="cls">MigrationBuilder</span> mb)
+    {
+        mb.<span class="fn">DropIndex</span>(name: <span class="str">"IX_users_Name"</span>, table: <span class="str">"users"</span>);
+    }
+}</pre>
+
+<pre><span class="cmt">// ── Deployment option 1: MigrateAsync() at startup ──────────────────────────</span>
+<span class="cmt">// Simple for containers; guard against race conditions in multi-instance deploys</span>
+<span class="kw">await using var</span> scope = app.Services.<span class="fn">CreateAsyncScope</span>();
+<span class="kw">await</span> scope.ServiceProvider
+           .<span class="fn">GetRequiredService</span>&lt;<span class="cls">AppDbContext</span>&gt;()
+           .Database.<span class="fn">MigrateAsync</span>();</pre>
+
+<pre><span class="cmt"># ── Deployment option 2: SQL script — safest for production ─────────────────</span>
+<span class="cmt"># --idempotent checks __EFMigrationsHistory before each step — safe to re-run</span>
+dotnet ef migrations script --idempotent --output migrations.sql
+
+<span class="cmt"># ── Deployment option 3: migration bundle — recommended for CI/CD ───────────</span>
+<span class="cmt"># Self-contained executable — no app or EF tooling needed at deploy time</span>
+dotnet ef migrations bundle --self-contained -r linux-x64</pre>
+
+      <div class="callout callout-warn">
+        ⚠️ <strong>Never edit a migration already applied to production.</strong> Once <code>__EFMigrationsHistory</code> records it, EF considers it applied permanently. Create a new migration to fix or revert the change.
+      </div>
+      <div class="callout callout-warn" style="margin-top:8px;">
+        ⚠️ <strong><code>Down()</code> is not a production rollback strategy.</strong> It's a local development convenience. In production, roll forward with a new corrective migration — attempting to run <code>Down()</code> on a live database with real data is dangerous and often destructive.
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       ERA DIVIDER — RUNTIME
+  ═══════════════════════════════════════════════════ -->
+  <div class="era-divider" style="margin-top:24px;">
+    <span class="era-label era-runtime">⚡ Runtime — runs per operation in your application</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       ④ QUERY PIPELINE
+  ═══════════════════════════════════════════════════ -->
+  <div id="query" class="phase phase-query">
+    <div class="phase-label">④ Query</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>🔍 Query Pipeline — LINQ to SQL</span>
+        <span class="badge">expression tree → translated → cached → executed</span>
+      </div>
+
+      <div class="callout callout-info" style="margin-bottom:12px;">
+        <strong><code>IQueryable&lt;T&gt;</code> is a description, not a result.</strong> Every <code>.Where()</code>, <code>.OrderBy()</code>, and <code>.Select()</code> builds an expression tree in memory — nothing touches the database. SQL is sent only when you enumerate: <code>ToListAsync()</code>, <code>FirstOrDefaultAsync()</code>, <code>SingleOrDefaultAsync()</code>, <code>CountAsync()</code>, or <code>foreach</code>. Every pitfall in this section — client evaluation, full-table loads, unnecessary tracking — traces back to misunderstanding this boundary.
+      </div>
+
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main">EF translates the expression tree to SQL and caches the translation by query shape — first call compiles, subsequent calls reuse</div>
+            <div class="step-note">Query shape is determined by the structure of the expression tree, not the parameter values — parameters are always sent separately, never interpolated into SQL. If EF cannot translate an expression, it throws at runtime with a clear message indicating what could not be translated. Keep logic that can't translate to SQL out of <code>IQueryable</code> chains.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main">Never break the <code>IQueryable</code> chain early — calling <code>.AsEnumerable()</code> or returning <code>IEnumerable&lt;T&gt;</code> mid-chain sends the SQL immediately and pulls all rows into memory</div>
+            <div class="step-note">Everything chained after the break runs in C# against the already-loaded dataset. A common version of this: a repository method returns <code>IEnumerable&lt;T&gt;</code> instead of <code>IQueryable&lt;T&gt;</code>, so every caller's <code>.Where()</code> filters in memory on the full table.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main">Always project with <code>Select()</code> — load full entities only when you intend to modify them</div>
+            <div class="step-note">A full entity fetch loads every column, allocates a tracked instance, and stores a snapshot copy. If you only need two fields for a read, project to an anonymous type or DTO. This is not a micro-optimisation — on wide tables or large result sets it is the difference between milliseconds and seconds.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-main">Results are materialised and registered with the Change Tracker — use <code>AsNoTracking()</code> for read-only queries</div>
+            <div class="step-note">Two costs apply to tracked queries: snapshot allocation happens at query time (one copy of every property value per entity); change detection (<code>DetectChanges</code>) runs inside <code>SaveChanges</code> to diff current vs snapshot values. <code>AsNoTracking()</code> skips both. See ⑤ for the full Change Tracker picture.</div>
+          </div>
+        </div>
+      </div>
+
+<pre><span class="cmt">// IQueryable — built up, SQL not sent yet:</span>
+<span class="cls">IQueryable</span>&lt;<span class="cls">User</span>&gt; q = db.Users
+    .<span class="fn">Where</span>(u =&gt; u.IsActive)
+    .<span class="fn">OrderBy</span>(u =&gt; u.Name);            <span class="cmt">// still no SQL</span>
+
+<span class="cls">List</span>&lt;<span class="cls">User</span>&gt; users = <span class="kw">await</span> q.<span class="fn">ToListAsync</span>();  <span class="cmt">// ← SQL fires here</span>
+
+<span class="cmt">// IEnumerable pitfall — ALL rows loaded, filtering in C#:</span>
+<span class="cls">IEnumerable</span>&lt;<span class="cls">User</span>&gt; allUsersInMemory = db.Users
+    .<span class="fn">AsEnumerable</span>()                   <span class="cmt">// ← SQL fires here, entire table loaded</span>
+    .<span class="fn">Where</span>(u =&gt; u.IsActive);           <span class="cmt">// filtered in memory — too late</span>
+
+<span class="cmt">// Projection — fetch only what you need:</span>
+<span class="kw">var</span> dtos = <span class="kw">await</span> db.Users
+    .<span class="fn">Where</span>(u =&gt; u.IsActive)
+    .<span class="fn">Select</span>(u =&gt; <span class="kw">new</span> { u.Id, u.Name })  <span class="cmt">// → SELECT Id, Name FROM users WHERE IsActive=1</span>
+    .<span class="fn">ToListAsync</span>();                    <span class="cmt">// projecting to non-entity type — no tracking, no snapshot, no unused columns</span>
+
+<span class="cmt">// Debug: see the SQL before it hits the database:</span>
+<span class="cls">Console</span>.<span class="fn">WriteLine</span>(q.<span class="fn">ToQueryString</span>());  <span class="cmt">// includes global query filters — useful for debugging silently-filtered results</span></pre>
+
+      <div class="callout callout-warn">
+        ⚠️ <strong>Global query filters are invisible.</strong> If a query returns fewer rows than expected, check whether a filter declared in <code>OnModelCreating</code> is excluding them. Use <code>.IgnoreQueryFilters()</code> to bypass, or <code>ToQueryString()</code> to see the full SQL including filter clauses.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow"><span>Returned entities registered with the Change Tracker</span></div>
+
+  <!-- ══════════════════════════════════════════════
+       ⑤ CHANGE TRACKER
+  ═══════════════════════════════════════════════════ -->
+  <div id="ct" class="phase phase-ct">
+    <div class="phase-label">⑤ Change Tracker</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>📋 Change Tracker — the per-scope state register</span>
+        <span class="badge">snapshot · state machine · identity map · DetectChanges</span>
+      </div>
+
+      <div class="callout callout-info" style="margin-bottom:12px;">
+        <strong>The Change Tracker is what makes EF feel like magic.</strong> When you write <code>user.Name = "Alice"; await db.SaveChangesAsync()</code> with no explicit UPDATE statement, the tracker is doing the work — it noticed the property changed by diffing against its stored snapshot, marked the entity Modified, and translated that to SQL. Every tracked entity has a state, an original-values snapshot, and an entry in the identity map.
+      </div>
+
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main">Every entity loaded by a tracked query is registered with state <code>Unchanged</code> and a snapshot of its original values</div>
+            <div class="step-note">The snapshot is a deep copy of all scalar property values at load time. It's the baseline <code>DetectChanges</code> diffs against. You can inspect all tracked entries via <code>db.ChangeTracker.Entries()</code> — useful for debugging unexpected saves or missing updates.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main">Five entity states — transitions happen via property assignment, <code>db.Add</code>, <code>db.Remove</code>, <code>db.Attach</code>, or <code>db.Entry(e).State</code></div>
+            <div class="step-note">
+              <strong>Detached</strong> — not known to the tracker (never loaded, or loaded with <code>AsNoTracking</code>)<br>
+              <strong>Unchanged</strong> — loaded and tracked; no properties changed since snapshot<br>
+              <strong>Added</strong> — new entity; will become an INSERT on SaveChanges<br>
+              <strong>Modified</strong> — at least one property differs from the snapshot; will become an UPDATE<br>
+              <strong>Deleted</strong> — marked for removal; will become a DELETE on SaveChanges
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main"><code>DetectChanges</code> — the mechanism that scans all tracked entities, diffs current vs snapshot, and updates states</div>
+            <div class="step-note">Runs automatically before <code>SaveChanges</code>, and is also triggered by <code>ChangeTracker.Entries()</code> and certain other operations. Expensive at scale — if you're loading thousands of entities and not saving them, disable auto-detection with <code>db.ChangeTracker.AutoDetectChangesEnabled = false</code> and call <code>db.ChangeTracker.DetectChanges()</code> manually when needed.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-main">The Change Tracker also acts as an identity map — loading the same entity twice in one scope returns the same instance, not two separate copies</div>
+            <div class="step-note"><code>FindAsync(5)</code> called twice hits the tracker on the second call and returns immediately without a database round-trip. This is the first-level cache. It means within one scope, your in-memory entity and the database row are guaranteed to be in sync — until someone else modifies the database.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <div class="step-main"><code>AsNoTracking()</code> — skip registration entirely; <code>AsNoTrackingWithIdentityResolution()</code> — skip snapshots but still de-duplicate related entities</div>
+            <div class="step-note"><code>AsNoTracking</code>: results are Detached, no snapshot, no identity map entry — use for pure reads. <code>AsNoTrackingWithIdentityResolution</code>: useful when a query returns the same parent entity multiple times via Includes — de-duplicates in memory without the full tracking overhead. Neither can be used with SaveChanges.</div>
+          </div>
+        </div>
+      </div>
+
+<pre><span class="cmt">// Tracked — EF watches for changes via snapshot diff:</span>
+<span class="kw">var</span> user = <span class="kw">await</span> db.Users.<span class="fn">FindAsync</span>(<span class="num">5</span>);    <span class="cmt">// state: Unchanged — snapshot stored</span>
+user!.Name = <span class="str">"Alice"</span>;                       <span class="cmt">// state: Modified  — detected by DetectChanges</span>
+<span class="kw">await</span> db.<span class="fn">SaveChangesAsync</span>();                <span class="cmt">// → UPDATE users SET Name='Alice' WHERE Id=5</span>
+
+<span class="cmt">// Identity map — second FindAsync returns same instance, no DB call:</span>
+<span class="kw">var</span> a = <span class="kw">await</span> db.Users.<span class="fn">FindAsync</span>(<span class="num">5</span>);       <span class="cmt">// hits database</span>
+<span class="kw">var</span> b = <span class="kw">await</span> db.Users.<span class="fn">FindAsync</span>(<span class="num">5</span>);       <span class="cmt">// hits tracker — same instance, no round-trip</span>
+<span class="cls">Console</span>.<span class="fn">WriteLine</span>(<span class="cls">object</span>.<span class="fn">ReferenceEquals</span>(a, b)); <span class="cmt">// True</span>
+
+<span class="cmt">// AsNoTracking — read-only, no snapshot, no identity map:</span>
+<span class="kw">var</span> users = <span class="kw">await</span> db.Users
+    .<span class="fn">AsNoTracking</span>()
+    .<span class="fn">Where</span>(u =&gt; u.IsActive)
+    .<span class="fn">ToListAsync</span>();                          <span class="cmt">// Detached — SaveChanges ignores these entirely</span>
+
+<span class="cmt">// Inspect what the tracker currently holds:</span>
+<span class="kw">foreach</span> (<span class="kw">var</span> entry <span class="kw">in</span> db.ChangeTracker.<span class="fn">Entries</span>())
+    <span class="cls">Console</span>.<span class="fn">WriteLine</span>($<span class="str">"{entry.Entity.GetType().Name} — {entry.State}"</span>);</pre>
+
+      <div class="callout callout-warn">
+        ⚠️ <strong>Tracking has a memory cost.</strong> EF allocates a snapshot copy of every scalar property for every tracked entity. Loading 10,000 entities tracked roughly doubles memory usage. Use <code>AsNoTracking()</code> for lists, reports, and anything you won't modify.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow"><span>SaveChanges called → DetectChanges → commands batched → SQL sent</span></div>
+
+  <!-- ══════════════════════════════════════════════
+       ⑥ SAVECHANGES
+  ═══════════════════════════════════════════════════ -->
+  <div id="save" class="phase phase-save">
+    <div class="phase-label">⑥ SaveChanges</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>💾 SaveChanges — flush to the database</span>
+        <span class="badge">detect → batch → transaction → execute</span>
+      </div>
+
+      <div style="margin-top:8px;">
+        <div style="font-size:0.7rem;font-weight:700;color:#8b949e;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">What happens inside SaveChangesAsync()</div>
+        <div class="timeline">
+          <div class="tl-item highlight"><strong>DetectChanges</strong> — compares all tracked entities against their snapshots, updates entity states</div>
+          <div class="tl-item hl-purple"><strong>SavingChanges event / ISaveChangesInterceptor.SavingChangesAsync</strong> — hook fires before any SQL is sent</div>
+          <div class="tl-item hl-orange"><strong>Command batch built</strong> — INSERTs, UPDATEs, DELETEs ordered to respect FK constraints</div>
+          <div class="tl-item hl-orange"><strong>Transaction opened</strong> — implicit transaction wraps the entire batch (unless you supplied one)</div>
+          <div class="tl-item hl-orange"><strong>SQL executed</strong> — commands sent to the database; concurrency tokens checked (see ⑧)</div>
+          <div class="tl-item hl-orange"><strong>Transaction committed</strong> — all commands succeeded; changes are durable</div>
+          <div class="tl-item highlight"><strong>Snapshots updated</strong> — tracked entities' original-value snapshots refreshed to the saved values</div>
+          <div class="tl-item hl-purple"><strong>SavedChanges event / ISaveChangesInterceptor.SavedChangesAsync</strong> — hook fires after commit; safe to dispatch domain events here</div>
+        </div>
+        <div style="margin-top:6px;font-size:0.68rem;color:#8b949e;">
+          <span style="color:#7ee787;">●</span> EF internal &nbsp;·&nbsp;
+          <span style="color:#f78166;">●</span> database operation &nbsp;·&nbsp;
+          <span style="color:#d2a8ff;">●</span> interceptor / event hook
+        </div>
+      </div>
+
+<pre><span class="cmt">// All three change states in one SaveChanges call:</span>
+<span class="kw">var</span> existingUser = <span class="kw">await</span> db.Users.<span class="fn">FindAsync</span>(<span class="num">3</span>);   <span class="cmt">// state: Unchanged</span>
+<span class="kw">var</span> oldUser      = <span class="kw">await</span> db.Users.<span class="fn">FindAsync</span>(<span class="num">7</span>);   <span class="cmt">// state: Unchanged</span>
+
+db.<span class="fn">Add</span>(<span class="kw">new</span> <span class="cls">User</span> { Name = <span class="str">"Bob"</span> });               <span class="cmt">// state: Added   → INSERT</span>
+existingUser!.Name = <span class="str">"Alice"</span>;                    <span class="cmt">// state: Modified → UPDATE</span>
+db.<span class="fn">Remove</span>(oldUser!);                             <span class="cmt">// state: Deleted  → DELETE</span>
+
+<span class="kw">int</span> rowsAffected = <span class="kw">await</span> db.<span class="fn">SaveChangesAsync</span>();   <span class="cmt">// all three sent in one transaction</span>
+
+<span class="cmt">// ── SavingChanges hook ─────────────────────────────────────────────────────</span>
+<span class="cmt">// Subscribe ONCE in AppDbContext's constructor, not in a service method.</span>
+<span class="cmt">// Attaching inline (db.SavingChanges += ...) per-call leaks handlers — each</span>
+<span class="cmt">// call appends a new delegate that is never removed for the lifetime of the instance.</span>
+<span class="cmt">//</span>
+<span class="cmt">// Add to AppDbContext constructor:</span>
+<span class="kw">public</span> <span class="fn">AppDbContext</span>(<span class="cls">DbContextOptions</span>&lt;<span class="cls">AppDbContext</span>&gt; options) : <span class="kw">base</span>(options)
+{
+    SavingChanges += (<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="fn">StampAuditFields</span>();
+}
+
+<span class="cmt">// IAuditable — define once in your project, implement on any entity that needs audit stamps:</span>
+<span class="kw">public interface</span> <span class="cls">IAuditable</span>
+{
+    <span class="cls">DateTime</span> CreatedAt { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="cls">DateTime</span> UpdatedAt { <span class="kw">get</span>; <span class="kw">set</span>; }
+}
+
+<span class="kw">private void</span> <span class="fn">StampAuditFields</span>()
+{
+    <span class="kw">var</span> now = <span class="cls">DateTime</span>.UtcNow;
+    <span class="kw">foreach</span> (<span class="kw">var</span> entry <span class="kw">in</span> ChangeTracker.<span class="fn">Entries</span>&lt;<span class="cls">IAuditable</span>&gt;())
+    {
+        <span class="kw">if</span> (entry.State == <span class="cls">EntityState</span>.Added)
+        {
+            entry.Entity.CreatedAt = now;   <span class="cmt">// set on INSERT only</span>
+            entry.Entity.UpdatedAt = now;
+        }
+        <span class="kw">else if</span> (entry.State == <span class="cls">EntityState</span>.Modified)
+        {
+            entry.Entity.UpdatedAt = now;   <span class="cmt">// leave CreatedAt untouched</span>
+        }
+    }
+}</pre>
+      <div class="callout callout-tip">
+        💡 <strong>Unit of Work pattern:</strong> <code>DbContext</code> <em>is</em> the Unit of Work. Make all your changes, then call <code>SaveChanges</code> once. Don't call it after every individual operation — the whole point is batching related changes into one atomic transaction.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow"><span>Navigation properties resolved — JOIN vs separate query</span></div>
+
+  <!-- ══════════════════════════════════════════════
+       ⑦ RELATIONSHIPS & LOADING
+  ═══════════════════════════════════════════════════ -->
+  <div id="relationships" class="phase phase-rel">
+    <div class="phase-label">⑦ Relationships</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>🔗 Relationships &amp; Loading Strategies</span>
+        <span class="badge">eager · explicit · lazy — pick one</span>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main"><strong>Eager loading</strong> — <code>Include()</code> / <code>ThenInclude()</code> — loads related data in the same query via JOIN</div>
+            <div class="step-note">Best when you know you'll always need the related data. One round-trip to the database. Watch out for <strong>cartesian explosion</strong>: including two collection navigations (e.g. Posts and Tags) generates a JOIN that multiplies rows — 100 users × 10 posts × 5 tags = 5,000 rows. Use <code>AsSplitQuery()</code> to break it into separate SELECTs (see ⑫ Performance). For single collection includes, a JOIN is usually cheaper than the extra round-trip.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main"><strong>Explicit loading</strong> — <code>entry.Collection().LoadAsync()</code> — you ask for related data on demand</div>
+            <div class="step-note">Good when related data is only needed conditionally. Use <code>entry.Collection(u =&gt; u.Posts).LoadAsync()</code> for one-to-many, and <code>entry.Reference(p =&gt; p.Author).LoadAsync()</code> for a single reference. Before loading, check <code>entry.Collection(u =&gt; u.Posts).IsLoaded</code> to avoid a redundant round-trip if it was already fetched by a prior query in the same scope.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main"><strong>Lazy loading</strong> — navigation property access automatically fires a SQL query</div>
+            <div class="step-note">Requires <code>Microsoft.EntityFrameworkCore.Proxies</code> and <code>UseLazyLoadingProxies()</code>, plus <code>virtual</code> nav properties. Convenient but hides N+1 bugs: in a loop over 100 users, accessing <code>user.Posts</code> each iteration fires 100 separate queries — 101 total instead of 1. This often goes unnoticed until production load reveals it. Recommendation: disable lazy loading by default; use <code>Include()</code> or explicit loading instead, so data access is visible in code.</div>
+          </div>
+        </div>
+      </div>
+<pre><span class="cmt">// Eager — one JOIN query (2 includes = one wide SELECT with two JOINs):</span>
+<span class="kw">var</span> usersWithPosts = <span class="kw">await</span> db.Users
+    .<span class="fn">Include</span>(u =&gt; u.Posts)
+        .<span class="fn">ThenInclude</span>(p =&gt; p.Comments)
+    .<span class="fn">ToListAsync</span>();
+
+<span class="cmt">// Split query — avoids cartesian explosion for large collections:</span>
+<span class="kw">var</span> usersSplit = <span class="kw">await</span> db.Users
+    .<span class="fn">Include</span>(u =&gt; u.Posts)
+    .<span class="fn">AsSplitQuery</span>()    <span class="cmt">// → 2 separate SELECTs instead of one wide JOIN</span>
+    .<span class="fn">ToListAsync</span>();
+
+<span class="cmt">// Explicit — load only when needed:</span>
+<span class="kw">var</span> user = <span class="kw">await</span> db.Users.<span class="fn">FindAsync</span>(<span class="num">5</span>);   <span class="cmt">// returns User? — null if not found</span>
+<span class="kw">if</span> (user <span class="kw">is not null</span>)
+    <span class="kw">await</span> db.<span class="fn">Entry</span>(user).<span class="fn">Collection</span>(u =&gt; u.Posts).<span class="fn">LoadAsync</span>();</pre>
+      <div class="callout callout-warn">
+        ⚠️ <strong>The N+1 problem:</strong> iterating a list and accessing a navigation property inside the loop fires one SQL query per entity. 100 users → 101 queries. Always <code>Include()</code> upfront or project with <code>Select()</code> if you need related data inside a loop.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow"><span>Concurrent updates detected — concurrency token checked</span></div>
+
+  <!-- ══════════════════════════════════════════════
+       ⑧ CONCURRENCY
+  ═══════════════════════════════════════════════════ -->
+  <div id="concurrency" class="phase phase-conc">
+    <div class="phase-label">⑧ Concurrency</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>⚡ Concurrency — detecting conflicting writes</span>
+        <span class="badge">optimistic by default · rowversion recommended</span>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main">Mark a property with <code>[ConcurrencyToken]</code> or use a <code>rowversion</code> column — EF adds it to every UPDATE's WHERE clause</div>
+            <div class="step-note">EF checks that the token hasn't changed since you loaded the entity. If it has, someone else modified the row — the UPDATE affects 0 rows. <strong>SQL Server <code>rowversion</code> / <code>timestamp</code></strong> (mapped as <code>byte[]</code> with <code>[Timestamp]</code>): auto-incremented by the database on every write, requires no application code, and is the recommended approach. <strong>Manual token</strong> (e.g. <code>Guid</code> or <code>DateTime</code> with <code>[ConcurrencyToken]</code>): you update it yourself before saving — easier to port across databases but relies on application discipline to keep it current.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main">When 0 rows are affected, EF throws <code>DbUpdateConcurrencyException</code> — you must catch and resolve it</div>
+            <div class="step-note">The exception carries three value sets: <code>entry.OriginalValues</code> (what you loaded), <code>entry.CurrentValues</code> (what you tried to save), and <code>await entry.GetDatabaseValuesAsync()</code> (what's in the database right now). These give you everything needed to implement any resolution strategy — see the code block below for all three approaches.</div>
+          </div>
+        </div>
+      </div>
+<pre><span class="kw">public class</span> <span class="cls">User</span>
+{
+    <span class="kw">public int</span>     Id         { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="kw">public string?</span> Name       { <span class="kw">get</span>; <span class="kw">set</span>; }
+    <span class="ann">[Timestamp]</span>                               <span class="cmt">// SQL Server rowversion — auto-increments on every write</span>
+    <span class="kw">public byte[]?</span> RowVersion { <span class="kw">get</span>; <span class="kw">set</span>; }  <span class="cmt">// nullable — EF populates after INSERT/load</span>
+                                               <span class="cmt">// → WHERE Id=5 AND RowVersion=0x0000000000000042</span>
+}
+
+<span class="cmt">// ── Strategy 1: Client wins — retry with your values, ignoring what's in the DB ──</span>
+<span class="kw">try</span> { <span class="kw">await</span> db.<span class="fn">SaveChangesAsync</span>(); }
+<span class="kw">catch</span> (<span class="cls">DbUpdateConcurrencyException</span> ex)
+{
+    <span class="kw">var</span> entry    = ex.Entries.<span class="fn">Single</span>();
+    <span class="kw">var</span> dbValues = <span class="kw">await</span> entry.<span class="fn">GetDatabaseValuesAsync</span>();
+    entry.OriginalValues.<span class="fn">SetValues</span>(dbValues!); <span class="cmt">// bump token to DB's current value</span>
+    <span class="kw">await</span> db.<span class="fn">SaveChangesAsync</span>();               <span class="cmt">// retry — your CurrentValues overwrite the DB</span>
+}
+
+<span class="cmt">// ── Strategy 2: Server wins — discard your changes, keep what's in the DB ────</span>
+<span class="kw">try</span> { <span class="kw">await</span> db.<span class="fn">SaveChangesAsync</span>(); }
+<span class="kw">catch</span> (<span class="cls">DbUpdateConcurrencyException</span> ex)
+{
+    <span class="kw">var</span> entry    = ex.Entries.<span class="fn">Single</span>();
+    <span class="kw">var</span> dbValues = <span class="kw">await</span> entry.<span class="fn">GetDatabaseValuesAsync</span>();
+    entry.<span class="fn">SetValues</span>(dbValues!);               <span class="cmt">// overwrite your proposed values with DB values</span>
+    entry.OriginalValues.<span class="fn">SetValues</span>(dbValues!); <span class="cmt">// sync token — no SaveChanges needed</span>
+}
+
+<span class="cmt">// ── Strategy 3: Merge — decide per-property (e.g. surface a conflict UI) ─────</span>
+<span class="kw">try</span> { <span class="kw">await</span> db.<span class="fn">SaveChangesAsync</span>(); }
+<span class="kw">catch</span> (<span class="cls">DbUpdateConcurrencyException</span> ex)
+{
+    <span class="kw">var</span> entry    = ex.Entries.<span class="fn">Single</span>();
+    <span class="kw">var</span> dbValues = <span class="kw">await</span> entry.<span class="fn">GetDatabaseValuesAsync</span>();
+    <span class="kw">var</span> current  = entry.CurrentValues;
+    <span class="kw">foreach</span> (<span class="kw">var</span> prop <span class="kw">in</span> entry.Metadata.<span class="fn">GetProperties</span>())
+    {
+        <span class="cmt">// MergePolicy is application-specific — pick yours, client, server or combined:</span>
+        <span class="cmt">// e.g. take DB value for Price, keep client value for Description</span>
+        current[prop] = current[prop] ?? dbValues![prop]; <span class="cmt">// example: keep client if non-null</span>
+    }
+    entry.OriginalValues.<span class="fn">SetValues</span>(dbValues!); <span class="cmt">// sync token before retry</span>
+    <span class="kw">await</span> db.<span class="fn">SaveChangesAsync</span>();               <span class="cmt">// save the merged result</span>
+}</pre>
+    </div>
+  </div>
+
+  <div class="arrow"><span>Bypass the pipeline — raw SQL or stored procedures</span></div>
+
+  <!-- ══════════════════════════════════════════════
+       ⑨ RAW SQL & STORED PROCS
+  ═══════════════════════════════════════════════════ -->
+  <div id="raw" class="phase phase-raw">
+    <div class="phase-label">⑨ Raw SQL</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>🛠️ Raw SQL &amp; Stored Procedures — when LINQ isn't enough</span>
+        <span class="badge">composable or non-composable · watch for injection</span>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main"><code>FromSql()</code> — returns entity instances that compose with LINQ and are tracked</div>
+            <div class="step-note">The SQL becomes a subquery — you can add <code>.Where()</code>, <code>.OrderBy()</code>, <code>.Include()</code> on top. Must return all columns the entity expects. <strong><code>FromSql($"…{variable}…")</code></strong> (interpolated): EF converts interpolated values to parameterised placeholders — safe against injection. <strong><code>FromSqlRaw("…" + variable)</code></strong>: raw string concatenation — injection risk if any part comes from user input. Always prefer <code>FromSql</code> with interpolation; use <code>FromSqlRaw</code> only when the SQL itself is a static constant with no user input.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main"><code>ExecuteUpdateAsync</code> / <code>ExecuteDeleteAsync</code> (.NET 7+) — LINQ-based bulk DML that bypasses the Change Tracker entirely</div>
+            <div class="step-note">One SQL statement, no entities loaded, no snapshots. For raw DML strings or stored proc calls, use <code>ExecuteSqlRaw()</code> / <code>ExecuteSqlAsync()</code> instead — same bypass, but takes a hand-written SQL string. (<code>ExecuteSqlInterpolated</code> still compiles but is obsolete as of EF Core 7 — use <code>ExecuteSqlAsync</code> with interpolation instead.)</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main"><code>SqlQuery&lt;T&gt;()</code> (.NET 8+) — raw SQL that returns non-entity types (e.g. scalar projections, DTOs)</div>
+            <div class="step-note">No longer requires a <code>DbSet</code> or keyless entity type — project to any <code>record</code>, <code>class</code>, or primitive. The result is not tracked. Use when the shape of what you want back doesn't match any of your mapped entities — e.g. a report that joins across three tables and returns a flattened summary row.</div>
+          </div>
+        </div>
+      </div>
+<pre><span class="cmt">// FromSql — composable, tracked, parameterised:</span>
+<span class="kw">var</span> users = <span class="kw">await</span> db.Users
+    .<span class="fn">FromSql</span>($<span class="str">"SELECT * FROM users WHERE TenantId = {tenantId}"</span>)  <span class="cmt">// interpolation → safe parameter</span>
+    .<span class="fn">Where</span>(u =&gt; u.IsActive)   <span class="cmt">// composed as SQL subquery</span>
+    .<span class="fn">ToListAsync</span>();
+
+<span class="cmt">// ExecuteUpdate — bulk UPDATE without loading entities (.NET 7+):</span>
+<span class="kw">await</span> db.Users
+    .<span class="fn">Where</span>(u =&gt; u.LastLogin &lt; <span class="cls">DateTime</span>.UtcNow.<span class="fn">AddYears</span>(-<span class="num">1</span>))
+    .<span class="fn">ExecuteUpdateAsync</span>(s =&gt; s.<span class="fn">SetProperty</span>(u =&gt; u.IsActive, <span class="kw">false</span>));
+<span class="cmt">// → UPDATE users SET IsActive=0 WHERE LastLogin &lt; @p0   (no entities loaded)</span>
+
+<span class="cmt">// SqlQuery — raw SQL returning a non-entity type (.NET 8+):</span>
+<span class="kw">record</span> <span class="cls">OrderSummary</span>(<span class="kw">int</span> OrderId, <span class="kw">string</span> CustomerName, <span class="kw">decimal</span> Total);
+
+<span class="kw">var</span> summaries = <span class="kw">await</span> db.Database
+    .<span class="fn">SqlQuery</span>&lt;<span class="cls">OrderSummary</span>&gt;($<span class="str">"""
+        SELECT o.Id AS OrderId, c.Name AS CustomerName, SUM(li.Price) AS Total
+        FROM Orders o
+        JOIN Customers c ON c.Id = o.CustomerId
+        JOIN LineItems li ON li.OrderId = o.Id
+        WHERE o.TenantId = {tenantId}
+        GROUP BY o.Id, c.Name
+    """</span>)
+    .<span class="fn">ToListAsync</span>();
+<span class="cmt">// Returns List&lt;OrderSummary&gt; — not tracked, no DbSet required</span>
+
+<span class="cmt">// ExecuteSqlAsync — call a stored procedure (safe interpolation, EF Core 7+):</span>
+<span class="kw">await</span> db.Database.<span class="fn">ExecuteSqlAsync</span>(
+    $<span class="str">"EXEC sp_ArchiveOrders @cutoff={cutoffDate}, @batchSize={batchSize}"</span>);
+<span class="cmt">// interpolated values become SQL parameters — safe against injection</span></pre>
+      <div class="callout callout-warn">
+        ⚠️ <strong>Always use parameterised queries.</strong> <code>FromSql($"…{variable}…")</code> (interpolated) is safe — EF converts interpolated values to parameters. <code>FromSqlRaw("…" + variable)</code> is string concatenation and is vulnerable to SQL injection. Prefer the interpolated form.
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow"><span>Cross-cutting hooks — intercept commands and save operations</span></div>
+
+  <!-- ══════════════════════════════════════════════
+       ⑩ INTERCEPTORS & EVENTS
+  ═══════════════════════════════════════════════════ -->
+  <div id="interceptors" class="phase phase-int">
+    <div class="phase-label">⑩ Interceptors</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>🔌 Interceptors &amp; Events — cross-cutting hooks</span>
+        <span class="badge">command · save · connection · transaction</span>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main"><code>IDbCommandInterceptor</code> — intercept every SQL command before and after execution</div>
+            <div class="step-note">Use for query logging, slow-query alerts, read/write splitting. Override <code>ReaderExecutingAsync</code> to inspect/modify a query before it runs; override <code>ReaderExecutedAsync</code> to log duration after. For lightweight logging without a full interceptor, use <code>optionsBuilder.LogTo(Console.WriteLine, LogLevel.Information)</code> or wire up a <code>DiagnosticSource</code> listener — <code>DiagnosticListener("Microsoft.EntityFrameworkCore")</code> emits structured events for every command, connection, and transaction without subclassing.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main"><code>ISaveChangesInterceptor</code> — hook into SaveChanges before and after the transaction commits</div>
+            <div class="step-note">Best place for audit logging, soft-delete enforcement, domain event dispatch. <strong><code>SavingChangesAsync</code></strong>: fires before SQL is sent — use to stamp audit fields, enforce invariants, or enqueue outbox messages as part of the same transaction. <strong><code>SavedChangesAsync</code></strong>: fires after the transaction commits — use to dispatch domain events, invalidate caches, or trigger side-effects that should only happen if the save succeeded. Never dispatch events in <code>SavingChangesAsync</code>; the transaction may still roll back.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main"><code>IConnectionInterceptor</code> / <code>ITransactionInterceptor</code> — hook into connection open/close and transaction begin/commit/rollback</div>
+            <div class="step-note">Useful for read/write connection splitting (send SELECTs to a read replica, writes to primary) and distributed tracing. Note: global query filters (multi-tenancy, soft deletes) belong in <code>OnModelCreating</code> — see ② Model.</div>
+          </div>
+        </div>
+      </div>
+<pre><span class="kw">public class</span> <span class="cls">SlowQueryInterceptor</span> : <span class="cls">DbCommandInterceptor</span>
+{
+    <span class="kw">private readonly</span> <span class="cls">ILogger</span>&lt;<span class="cls">SlowQueryInterceptor</span>&gt; _log;
+
+    <span class="kw">public</span> <span class="fn">SlowQueryInterceptor</span>(<span class="cls">ILogger</span>&lt;<span class="cls">SlowQueryInterceptor</span>&gt; log) =&gt; _log = log;
+
+    <span class="kw">public override</span> <span class="cls">ValueTask</span>&lt;<span class="cls">DbDataReader</span>&gt; <span class="fn">ReaderExecutedAsync</span>(
+        <span class="cls">DbCommand</span> command, <span class="cls">CommandExecutedEventData</span> eventData, <span class="cls">DbDataReader</span> result,
+        <span class="cls">CancellationToken</span> ct = <span class="kw">default</span>)
+    {
+        <span class="kw">if</span> (eventData.Duration &gt; <span class="cls">TimeSpan</span>.<span class="fn">FromMilliseconds</span>(<span class="num">500</span>))
+            _log.<span class="fn">LogWarning</span>(<span class="str">"Slow query ({Ms}ms): {Sql}"</span>,
+                (<span class="kw">long</span>)eventData.Duration.TotalMilliseconds, command.CommandText);
+        <span class="kw">return</span> <span class="kw">new</span> <span class="cls">ValueTask</span>&lt;<span class="cls">DbDataReader</span>&gt;(result);
+    }
+}
+
+<span class="cmt">// When an interceptor takes constructor-injected services, register it separately</span>
+<span class="cmt">// and resolve via 'sp' — simple interceptors with no dependencies can use 'new' directly:</span>
+builder.Services.<span class="fn">AddSingleton</span>&lt;<span class="cls">SlowQueryInterceptor</span>&gt;();
+builder.Services.<span class="fn">AddDbContext</span>&lt;<span class="cls">AppDbContext</span>&gt;((sp, o) =&gt;
+    o.<span class="fn">UseSqlServer</span>(connStr)
+     .<span class="fn">AddInterceptors</span>(sp.<span class="fn">GetRequiredService</span>&lt;<span class="cls">SlowQueryInterceptor</span>&gt;()));</pre>
+    </div>
+  </div>
+
+  <div class="arrow"><span>ADO.NET manages the actual connection pool</span></div>
+
+  <!-- ══════════════════════════════════════════════
+       ⑪ CONNECTIONS & TRANSACTIONS
+  ═══════════════════════════════════════════════════ -->
+  <div id="connections" class="phase phase-conn">
+    <div class="phase-label">⑪ Connections</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>🗄️ Connection &amp; Transaction Management</span>
+        <span class="badge">pooled by ADO.NET · explicit transactions available</span>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main">Connection pooling is handled by ADO.NET (SqlClient), not EF — EF borrows and returns connections from the pool</div>
+            <div class="step-note">EF opens a connection only when it needs to execute SQL and closes it immediately after. The pool keeps the physical TCP connection alive. Key connection string parameters: <code>Max Pool Size</code> (default 100 — max simultaneous connections; raise for high-throughput APIs, don't lower without reason), <code>Min Pool Size</code> (default 0 — connections kept warm; set to a small value on servers with constant load to avoid cold-start latency), <code>Connect Timeout</code> (default 15s — how long to wait for a pool slot or new connection before throwing). Monitor pool exhaustion: if all connections are in use, new requests queue until timeout — a sign you need a larger pool or shorter-lived DbContexts.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main">Implicit transactions — <code>SaveChanges</code> wraps its batch in a transaction automatically</div>
+            <div class="step-note">You get atomicity for free. If any command fails, the whole batch rolls back. You don't need to write transaction code for normal save operations.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main">Explicit transactions — <code>BeginTransactionAsync()</code> — span multiple <code>SaveChanges</code> calls or raw SQL</div>
+            <div class="step-note"><code>BeginTransactionAsync()</code> returns an <code>IDbContextTransaction</code> — call <code>CommitAsync()</code> to commit or let <code>await using</code> dispose it (which rolls back if commit was never called). To share a transaction across two <code>DbContext</code> instances, call <code>db2.Database.UseTransactionAsync(tx.GetDbTransaction())</code> — both contexts then participate in the same ADO.NET transaction. Avoid <code>TransactionScope</code> with async EF code: it can silently promote to a distributed transaction (DTC) if EF opens more than one connection, which requires MSDTC, adds significant overhead, and is disabled by default in many cloud environments.</div>
+          </div>
+        </div>
+      </div>
+<pre><span class="cmt">// Explicit transaction spanning two SaveChanges calls:</span>
+<span class="kw">await using var</span> tx = <span class="kw">await</span> db.Database.<span class="fn">BeginTransactionAsync</span>();
+<span class="cmt">// 'await using' guarantees rollback on any unhandled path — CommitAsync() was never called.</span>
+<span class="kw">try</span>
+{
+    db.<span class="fn">Add</span>(<span class="kw">new</span> <span class="cls">Order</span> { <span class="cmt">/* properties omitted */</span> });
+    <span class="kw">await</span> db.<span class="fn">SaveChangesAsync</span>();            <span class="cmt">// first batch</span>
+
+    db.<span class="fn">Add</span>(<span class="kw">new</span> <span class="cls">Invoice</span> { <span class="cmt">/* properties omitted */</span> });
+    <span class="kw">await</span> db.<span class="fn">SaveChangesAsync</span>();            <span class="cmt">// second batch — same transaction</span>
+
+    <span class="kw">await</span> tx.<span class="fn">CommitAsync</span>();
+}
+<span class="kw">catch</span>
+{
+    <span class="cmt">// No RollbackAsync() needed — 'await using' disposes the transaction automatically,</span>
+    <span class="cmt">// rolling back if CommitAsync() was never reached.</span>
+    <span class="kw">throw</span>;
+}</pre>
+    </div>
+  </div>
+
+  <div class="arrow"><span>Tune for production — compiled queries, bulk ops, projections</span></div>
+
+  <!-- ══════════════════════════════════════════════
+       ⑫ PERFORMANCE PITFALLS
+  ═══════════════════════════════════════════════════ -->
+  <div id="perf" class="phase phase-perf">
+    <div class="phase-label">⑫ Performance</div>
+    <div class="phase-body">
+      <div class="phase-title">
+        <span>🚀 Performance Pitfalls &amp; Optimisations</span>
+        <span class="badge">compiled queries · bulk ops · projections · split queries · pre-compiled model</span>
+      </div>
+      <div class="rows">
+        <div class="row">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-main"><strong>Compiled queries</strong> — pre-translate a fixed LINQ query shape, skip the expression-tree compilation on every call</div>
+            <div class="step-note">Biggest win for hot paths (login checks, per-request lookups). Use <code>EF.CompileAsyncQuery()</code> to produce a static delegate — the expression tree is compiled to SQL once and the result cached in a static field. The query shape must be fixed at compile time; you can pass parameters but not dynamically build the query structure. Not worth it for queries called rarely or already cached at a higher layer.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-main"><strong>Project, don't load</strong> — <code>Select()</code> to a DTO fetches only the columns you need</div>
+            <div class="step-note">Loading full tracked entities when you only need two fields wastes memory, bandwidth, and Change Tracker overhead. Rule: never load what you won't use.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-main"><strong>Bulk operations</strong> — <code>ExecuteUpdateAsync</code> / <code>ExecuteDeleteAsync</code> (.NET 7+) bypass the Change Tracker entirely</div>
+            <div class="step-note">One SQL statement, no entities loaded, no snapshots, no DetectChanges. Orders of magnitude faster for bulk writes. Contrast: updating 10,000 rows the traditional way (load all → modify each → SaveChanges) allocates 10,000 tracked entities with 10,000 snapshots, runs DetectChanges over all of them, then sends 10,000 individual UPDATE statements (or a large batch). <code>ExecuteUpdateAsync</code> sends a single <code>UPDATE … WHERE …</code> regardless of row count. Trade-off: bypasses interceptors and does not fire domain events.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-main"><strong>Split queries</strong> — <code>AsSplitQuery()</code> avoids cartesian explosion when including multiple collection navigations</div>
+            <div class="step-note">A JOIN across two collection includes multiplies rows: 100 users × 10 posts × 5 comments = 5,000 rows returned. Split into 3 separate queries instead. Trade-off: <strong>single JOIN query</strong> — one round-trip, consistent point-in-time snapshot, but can produce massive result sets; better when collections are small or you include only one collection. <strong>Split query</strong> — smaller result sets, more predictable memory use, but multiple round-trips and a tiny risk of inconsistency if data changes between the queries. In practice, split queries win once any included collection exceeds ~50 rows.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <div class="step-main"><strong>Log your queries</strong> — enable EF logging or use <code>ToQueryString()</code> to see the SQL before it hits production</div>
+            <div class="step-note">Three ways to see your SQL: <code>ToQueryString()</code> on any <code>IQueryable</code> returns the SQL as a string inline — good for one-off debugging. <code>optionsBuilder.LogTo(Console.WriteLine, LogLevel.Information)</code> logs every command to the console — add it in the <code>AddDbContext</code> lambda for DI apps, or in <code>OnConfiguring</code> for non-DI tools. <code>EnableSensitiveDataLogging()</code> adds parameter values to the log output (never enable in production). For production, use MiniProfiler or a structured logging interceptor to surface slow queries without the noise of logging all SQL.</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="step-num">6</div>
+          <div class="step-content">
+            <div class="step-main"><strong>Pre-compiled model</strong> — eliminate the one-time model compilation cost on first <code>DbContext</code> instantiation</div>
+            <div class="step-note">Run <code>dotnet ef dbcontext optimize</code> to generate a static compiled model, then wire it up via <code>UseModel()</code>. Worth doing when startup time is measurable — large models with hundreds of entities can add hundreds of milliseconds to cold start.</div>
+          </div>
+        </div>
+      </div>
+<pre><span class="cmt">// Compiled query — translate once, reuse forever:</span>
+<span class="cmt">// CompileAsyncQuery takes a synchronous LINQ expression and bakes the async Task&lt;T&gt; wrapper</span>
+<span class="cmt">// into the delegate — that's why the lambda uses FirstOrDefault (not FirstOrDefaultAsync)</span>
+<span class="cmt">// yet the Func return type is Task&lt;User?&gt; and the call site uses await.</span>
+<span class="kw">private static readonly</span> <span class="kw">Func</span>&lt;<span class="cls">AppDbContext</span>, <span class="kw">int</span>, <span class="cls">Task</span>&lt;<span class="cls">User</span>?&gt;&gt; <span class="fn">GetUserById</span> =
+    <span class="cls">EF</span>.<span class="fn">CompileAsyncQuery</span>((<span class="cls">AppDbContext</span> db, <span class="kw">int</span> id) =&gt;
+        db.Users.<span class="fn">FirstOrDefault</span>(u =&gt; u.Id == id));
+
+<span class="kw">var</span> user = <span class="kw">await</span> <span class="fn">GetUserById</span>(db, <span class="num">5</span>);   <span class="cmt">// no expression-tree compilation cost</span>
+
+<span class="cmt">// See the SQL before you run it:</span>
+<span class="cmt">// ToQueryString() reflects runtime state at the moment of the call — global filters,</span>
+<span class="cmt">// query filters, and any scoped parameters (e.g. current tenant) are evaluated then.</span>
+<span class="cmt">// Calling it outside a normal request scope may produce different SQL than production.</span>
+<span class="kw">var</span> query = db.Users.<span class="fn">Where</span>(u =&gt; !u.IsDeleted).<span class="fn">OrderBy</span>(u =&gt; u.Name);
+<span class="cls">Console</span>.<span class="fn">WriteLine</span>(query.<span class="fn">ToQueryString</span>());  <span class="cmt">// prints the SQL — global filter also applied</span>
+
+<span class="cmt">// Pre-compiled model — generated via: dotnet ef dbcontext optimize</span>
+<span class="cmt">// Namespace defaults to {RootNamespace}.CompiledModels; override with --namespace</span>
+builder.Services.<span class="fn">AddDbContext</span>&lt;<span class="cls">AppDbContext</span>&gt;(o =&gt;
+    o.<span class="fn">UseSqlServer</span>(connStr)
+     .<span class="fn">UseModel</span>(<span class="cls">CompiledModels</span>.<span class="cls">AppDbContextModel</span>.Instance));</pre>
+      <div class="callout callout-tip">
+        💡 <strong>Quick checklist before shipping a query:</strong> Is it using <code>AsNoTracking()</code> if read-only? Is it projecting with <code>Select()</code> rather than loading full entities? Does it have an <code>Include()</code> to avoid N+1? Does the WHERE clause translate to SQL (not client-eval)? Have you checked <code>ToQueryString()</code>?
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<div class="legend">
+  <div class="legend-item"><div class="leg-dot" style="background:#9e6a03"></div> DbContext</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#1f6feb"></div> Model</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#f78166"></div> Migrations</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#8957e5"></div> Query Pipeline</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#bf4b8a"></div> Change Tracker</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#da3633"></div> SaveChanges</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#2ea043"></div> Relationships</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#d29922"></div> Concurrency</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#7c8c1e"></div> Raw SQL</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#6e40c9"></div> Interceptors</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#8a5a2a"></div> Connections</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#1b7c83"></div> Performance</div>
+</div>
+
+
+
+<script>
+  function toggleTheme() {
+    const body = document.body;
+    const btn = document.getElementById('themeToggle');
+    const label = document.getElementById('themeLabel');
+    const isClassic = body.classList.toggle('classic');
+    btn.classList.toggle('active', isClassic);
+    label.textContent = isClassic ? 'Dark' : 'Light';
+    localStorage.setItem('efcore-theme', isClassic ? 'classic' : 'colorful');
+  }
+  (function() {
+    const saved = localStorage.getItem('efcore-theme');
+    if (saved === 'classic') {
+      document.body.classList.add('classic');
+      document.getElementById('themeToggle').classList.add('active');
+      document.getElementById('themeLabel').textContent = 'Dark';
+    }
+  })();
+</script>
+</body></html>
