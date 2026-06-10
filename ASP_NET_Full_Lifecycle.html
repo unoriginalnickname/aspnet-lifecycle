@@ -650,13 +650,17 @@ builder.Services.<span class="fn">AddAuthentication</span>(<span class="cls">Jwt
             <span class="cls">ValidAudience</span>            = builder.Configuration[<span class="str">"Jwt:Audience"</span>],
         };
     });
-builder.Services.<span class="fn">AddProblemDetails</span>();
+builder.Services.<span class="fn">AddCors</span>(o =&gt; o.<span class="fn">AddPolicy</span>(<span class="str">"MyPolicy"</span>, policy =&gt;
+    policy.<span class="fn">WithOrigins</span>(<span class="str">"https://myapp.com"</span>)
+          .<span class="fn">AllowAnyHeader</span>()
+          .<span class="fn">AllowAnyMethod</span>()));  <span class="cmt">// must be registered here — UseCors("MyPolicy") in the pipeline looks this up by name</span>
 builder.Services.<span class="fn">AddRateLimiter</span>(o =&gt; o.<span class="fn">AddFixedWindowLimiter</span>(<span class="str">"fixed"</span>, opt =&gt; {
     opt.PermitLimit          = <span class="num">100</span>;
     opt.Window               = <span class="cls">TimeSpan</span>.<span class="fn">FromMinutes</span>(<span class="num">1</span>);
     opt.QueueProcessingOrder = <span class="cls">QueueProcessingOrder</span>.OldestFirst;
     opt.QueueLimit           = <span class="num">0</span>;   <span class="cmt">// reject immediately when limit hit — no queue</span>
 }));  <span class="cmt">// .NET 7+; UseRateLimiter() activates it in the pipeline</span>
+builder.Services.<span class="fn">AddProblemDetails</span>();
 builder.Services.<span class="fn">AddScoped</span>&lt;<span class="cls">IUserService</span>, <span class="cls">UserService</span>&gt;();
 builder.Services.<span class="fn">AddDbContext</span>&lt;<span class="cls">AppDbContext</span>&gt;(o =&gt;
     o.<span class="fn">UseSqlServer</span>(builder.Configuration.<span class="fn">GetConnectionString</span>(<span class="str">"Default"</span>)));</pre>
