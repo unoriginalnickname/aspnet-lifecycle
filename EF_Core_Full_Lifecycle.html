@@ -446,6 +446,43 @@
     color: #e6edf3;
   }
 
+  /* ── page nav (ASP.NET / EF Core) — mirrors the theme switch on the left ── */
+  .page-nav {
+    position: fixed;
+    top: 12px;
+    left: 16px;
+    z-index: 200;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid #30363d;
+    backdrop-filter: blur(8px);
+  }
+  .page-nav a {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 16px;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    text-decoration: none;
+    white-space: nowrap;
+    color: #8b949e;
+    transition: background 0.15s, color 0.15s;
+  }
+  .page-nav a:hover { color: #e6edf3; }
+  .page-nav a.active {
+    background: rgba(255,255,255,0.12);
+    color: #e6edf3;
+    cursor: default;
+  }
+
   /* ════════════════════════════════════════════════════════════
      LIGHT THEME — applied when <html data-theme="light">
      (dark is the base stylesheet above; only overrides live here)
@@ -572,6 +609,14 @@ html[data-theme="light"] .phase-perf .phase-body  { background:#f2fcfd; border-c
     color: #0969da;
     box-shadow: 0 1px 2px rgba(0,0,0,0.12);
   }
+  html[data-theme="light"] .page-nav { background: rgba(0,0,0,0.04); border-color: #d0d7de; }
+  html[data-theme="light"] .page-nav a { color: #57606a; }
+  html[data-theme="light"] .page-nav a:hover { color: #0d1117; }
+  html[data-theme="light"] .page-nav a.active {
+    background: #fff;
+    color: #0969da;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  }
 
   /* remap inline-styled colors (override inline non-!important declarations) */
   html[data-theme="light"] [style*="color:#c9d1d9"] { color: #24292f !important; }
@@ -590,6 +635,10 @@ html[data-theme="light"] .phase-perf .phase-body  { background:#f2fcfd; border-c
 </style>
 </head>
 <body>
+<nav class="page-nav" aria-label="Lifecycle pages">
+  <a href="ASP_NET_Full_Lifecycle.html">ASP.NET Core</a>
+  <a class="active" aria-current="page">EF Core</a>
+</nav>
 <div class="theme-switch" role="group" aria-label="Color theme">
   <button type="button" data-theme-choice="light" title="Light" aria-label="Light"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg></button>
   <button type="button" data-theme-choice="dark" title="Dark" aria-label="Dark"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/></svg></button>
