@@ -120,7 +120,9 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     padding: 8px 6px;
-    border-radius: 8px 0 0 8px;
+    border-radius: 0 8px 8px 0;   /* label is rotated 180deg, so right-side radii render on the visual left */
+    border: 1px solid transparent;   /* color set by each .phase-X rule */
+    border-left-style: none;         /* shared (inner) edge — rotated 180deg, so this renders on the right, against the body */
     min-width: 28px;
     display: flex;
     align-items: center;
@@ -136,31 +138,31 @@
   }
 
   /* phase colours — design-time */
-  .phase-ctx    .phase-label { background:#2b1f08; color:#f0c25a; }
-  .phase-ctx    .phase-body  { background:#1a1308; border-color:#9e6a03; }
-  .phase-model  .phase-label { background:#1a1a2b; color:#79c0ff; }
-  .phase-model  .phase-body  { background:#10101a; border-color:#1f6feb; }
-  .phase-mig    .phase-label { background:#2b1e14; color:#ffa657; }
-  .phase-mig    .phase-body  { background:#1a1208; border-color:#f78166; }
+  .phase-ctx .phase-label { background:#2b1f08; color:#f0c25a; border-color:rgba(158,106,3,0.35); }
+  .phase-ctx    .phase-body  { background:#1a1308; border-color:rgba(158,106,3,0.35); }
+  .phase-model .phase-label { background:#1a1a2b; color:#79c0ff; border-color:rgba(31,111,235,0.35); }
+  .phase-model  .phase-body  { background:#10101a; border-color:rgba(31,111,235,0.35); }
+  .phase-mig .phase-label { background:#2b1e14; color:#ffa657; border-color:rgba(247,129,102,0.35); }
+  .phase-mig    .phase-body  { background:#1a1208; border-color:rgba(247,129,102,0.35); }
   /* phase colours — runtime */
-  .phase-query  .phase-label { background:#221a2c; color:#d2a8ff; }
-  .phase-query  .phase-body  { background:#160f1e; border-color:#8957e5; }
-  .phase-ct     .phase-label { background:#2b1422; color:#ff9bce; }
-  .phase-ct     .phase-body  { background:#1a0d16; border-color:#bf4b8a; }
-  .phase-save   .phase-label { background:#2b1a1a; color:#ff7b72; }
-  .phase-save   .phase-body  { background:#1a0e0e; border-color:#da3633; }
-  .phase-rel    .phase-label { background:#182b1a; color:#56d364; }
-  .phase-rel    .phase-body  { background:#0e1a0e; border-color:#2ea043; }
-  .phase-conc   .phase-label { background:#2b2218; color:#e3b341; }
-  .phase-conc   .phase-body  { background:#1a1408; border-color:#d29922; }
-  .phase-raw    .phase-label { background:#1e2208; color:#c8d564; }
-  .phase-raw    .phase-body  { background:#141608; border-color:#7c8c1e; }
-  .phase-int    .phase-label { background:#1c1a2b; color:#b4b4ff; }
-  .phase-int    .phase-body  { background:#111118; border-color:#6e40c9; }
-  .phase-conn   .phase-label { background:#251808; color:#dba96e; }
-  .phase-conn   .phase-body  { background:#160f05; border-color:#8a5a2a; }
-  .phase-perf   .phase-label { background:#0e2022; color:#76e3ea; }
-  .phase-perf   .phase-body  { background:#081415; border-color:#1b7c83; }
+  .phase-query .phase-label { background:#221a2c; color:#d2a8ff; border-color:rgba(137,87,229,0.35); }
+  .phase-query  .phase-body  { background:#160f1e; border-color:rgba(137,87,229,0.35); }
+  .phase-ct .phase-label { background:#2b1422; color:#ff9bce; border-color:rgba(191,75,138,0.35); }
+  .phase-ct     .phase-body  { background:#1a0d16; border-color:rgba(191,75,138,0.35); }
+  .phase-save .phase-label { background:#2b1a1a; color:#ff7b72; border-color:rgba(218,54,51,0.35); }
+  .phase-save   .phase-body  { background:#1a0e0e; border-color:rgba(218,54,51,0.35); }
+  .phase-rel .phase-label { background:#182b1a; color:#56d364; border-color:rgba(46,160,67,0.35); }
+  .phase-rel    .phase-body  { background:#0e1a0e; border-color:rgba(46,160,67,0.35); }
+  .phase-conc .phase-label { background:#2b2218; color:#e3b341; border-color:rgba(210,153,34,0.35); }
+  .phase-conc   .phase-body  { background:#1a1408; border-color:rgba(210,153,34,0.35); }
+  .phase-raw .phase-label { background:#1e2208; color:#c8d564; border-color:rgba(124,140,30,0.35); }
+  .phase-raw    .phase-body  { background:#141608; border-color:rgba(124,140,30,0.35); }
+  .phase-int .phase-label { background:#1c1a2b; color:#b4b4ff; border-color:rgba(110,64,201,0.35); }
+  .phase-int    .phase-body  { background:#111118; border-color:rgba(110,64,201,0.35); }
+  .phase-conn .phase-label { background:#251808; color:#dba96e; border-color:rgba(138,90,42,0.35); }
+  .phase-conn   .phase-body  { background:#160f05; border-color:rgba(138,90,42,0.35); }
+  .phase-perf .phase-label { background:#0e2022; color:#76e3ea; border-color:rgba(27,124,131,0.35); }
+  .phase-perf   .phase-body  { background:#081415; border-color:rgba(27,124,131,0.35); }
 
   /* connector arrow between phases */
   .arrow {
@@ -265,6 +267,20 @@
     min-width: 0;          /* prevents flex children from overflowing their container */
     white-space: pre;      /* preserve indentation; overflow-x handles long lines */
   }
+
+  /* native-feel, theme-blended scrollbars for code blocks */
+  pre { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.22) transparent; }
+  pre::-webkit-scrollbar { height: 10px; width: 10px; }
+  pre::-webkit-scrollbar-track { background: transparent; }
+  pre::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.18);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  pre::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.30); }
+  pre::-webkit-scrollbar-corner { background: transparent; }
+
   table { max-width: 100%; }
   .phase-body { min-width: 0; }
   .kw  { color: #ff7b72; }
@@ -372,6 +388,8 @@
       width: 100%;
       padding: 5px 12px;
       font-size: 0.6rem;
+      border-left-style: solid;    /* stacked layout isn't rotated — restore the real left edge */
+      border-bottom-style: none;   /* shared with the body below */
     }
     /* On mobile the label moves to the top, so swap the border corners.
        Avoid using the 'border' shorthand — it would override the per-phase
@@ -379,8 +397,8 @@
        Instead only touch what changes: radius and the top/left edges. */
     .phase-body {
       border-radius: 0 0 8px 8px;
-      border-left: 1px solid;   /* restore left border (was removed for sidebar layout) */
-      border-top: none;          /* remove top border (label is now the top element) */
+      border-left-width: 1px; border-left-style: solid;   /* restore left border (was removed for sidebar layout) */
+      border-top-style: none;          /* remove top border (label is now the top element) */
     }
     .grid3 { grid-template-columns: 1fr; }
     .grid4 { grid-template-columns: 1fr; }
@@ -456,30 +474,30 @@ html[data-theme="light"] .toc-conn { color:#8a5a2a; border-color:#b0824a; backgr
 html[data-theme="light"] .toc-perf { color:#0d6e75; border-color:#1b9aa3; background:#e0f7f9; }
 
   /* phase banners */
-html[data-theme="light"] .phase-ctx .phase-label { background:#fff8c5; color:#9a6700; }
-html[data-theme="light"] .phase-ctx .phase-body  { background:#fffdf2; border-color:#c9910a; }
-html[data-theme="light"] .phase-model .phase-label { background:#ddf4ff; color:#0969da; }
-html[data-theme="light"] .phase-model .phase-body  { background:#f5fbff; border-color:#1f6feb; }
-html[data-theme="light"] .phase-mig .phase-label { background:#fff1e5; color:#bc4c00; }
-html[data-theme="light"] .phase-mig .phase-body  { background:#fff9f4; border-color:#e8843c; }
-html[data-theme="light"] .phase-query .phase-label { background:#fbefff; color:#8250df; }
-html[data-theme="light"] .phase-query .phase-body  { background:#fdf9ff; border-color:#8957e5; }
-html[data-theme="light"] .phase-ct .phase-label { background:#ffeff7; color:#a4267f; }
-html[data-theme="light"] .phase-ct .phase-body  { background:#fff7fb; border-color:#d6519e; }
-html[data-theme="light"] .phase-save .phase-label { background:#ffebe9; color:#cf222e; }
-html[data-theme="light"] .phase-save .phase-body  { background:#fff7f6; border-color:#da3633; }
-html[data-theme="light"] .phase-rel .phase-label { background:#eafbe7; color:#1a7f37; }
-html[data-theme="light"] .phase-rel .phase-body  { background:#f6fff9; border-color:#2da44e; }
-html[data-theme="light"] .phase-conc .phase-label { background:#fff8c5; color:#9a6700; }
-html[data-theme="light"] .phase-conc .phase-body  { background:#fffdf2; border-color:#c9910a; }
-html[data-theme="light"] .phase-raw .phase-label { background:#f4f8d4; color:#5a6e00; }
-html[data-theme="light"] .phase-raw .phase-body  { background:#fbfde9; border-color:#9bb000; }
-html[data-theme="light"] .phase-int .phase-label { background:#f0eeff; color:#6639ba; }
-html[data-theme="light"] .phase-int .phase-body  { background:#faf9ff; border-color:#8250df; }
-html[data-theme="light"] .phase-conn .phase-label { background:#f7efe3; color:#8a5a2a; }
-html[data-theme="light"] .phase-conn .phase-body  { background:#fdfaf4; border-color:#b0824a; }
-html[data-theme="light"] .phase-perf .phase-label { background:#e0f7f9; color:#0d6e75; }
-html[data-theme="light"] .phase-perf .phase-body  { background:#f2fcfd; border-color:#1b9aa3; }
+html[data-theme="light"] .phase-ctx .phase-label { background:#fff8c5; color:#9a6700; border-color:rgba(201,145,10,0.35); }
+html[data-theme="light"] .phase-ctx .phase-body  { background:#fffdf2; border-color:rgba(201,145,10,0.35); }
+html[data-theme="light"] .phase-model .phase-label { background:#ddf4ff; color:#0969da; border-color:rgba(31,111,235,0.35); }
+html[data-theme="light"] .phase-model .phase-body  { background:#f5fbff; border-color:rgba(31,111,235,0.35); }
+html[data-theme="light"] .phase-mig .phase-label { background:#fff1e5; color:#bc4c00; border-color:rgba(232,132,60,0.35); }
+html[data-theme="light"] .phase-mig .phase-body  { background:#fff9f4; border-color:rgba(232,132,60,0.35); }
+html[data-theme="light"] .phase-query .phase-label { background:#fbefff; color:#8250df; border-color:rgba(137,87,229,0.35); }
+html[data-theme="light"] .phase-query .phase-body  { background:#fdf9ff; border-color:rgba(137,87,229,0.35); }
+html[data-theme="light"] .phase-ct .phase-label { background:#ffeff7; color:#a4267f; border-color:rgba(214,81,158,0.35); }
+html[data-theme="light"] .phase-ct .phase-body  { background:#fff7fb; border-color:rgba(214,81,158,0.35); }
+html[data-theme="light"] .phase-save .phase-label { background:#ffebe9; color:#cf222e; border-color:rgba(218,54,51,0.35); }
+html[data-theme="light"] .phase-save .phase-body  { background:#fff7f6; border-color:rgba(218,54,51,0.35); }
+html[data-theme="light"] .phase-rel .phase-label { background:#eafbe7; color:#1a7f37; border-color:rgba(45,164,78,0.35); }
+html[data-theme="light"] .phase-rel .phase-body  { background:#f6fff9; border-color:rgba(45,164,78,0.35); }
+html[data-theme="light"] .phase-conc .phase-label { background:#fff8c5; color:#9a6700; border-color:rgba(201,145,10,0.35); }
+html[data-theme="light"] .phase-conc .phase-body  { background:#fffdf2; border-color:rgba(201,145,10,0.35); }
+html[data-theme="light"] .phase-raw .phase-label { background:#f4f8d4; color:#5a6e00; border-color:rgba(155,176,0,0.35); }
+html[data-theme="light"] .phase-raw .phase-body  { background:#fbfde9; border-color:rgba(155,176,0,0.35); }
+html[data-theme="light"] .phase-int .phase-label { background:#f0eeff; color:#6639ba; border-color:rgba(130,80,223,0.35); }
+html[data-theme="light"] .phase-int .phase-body  { background:#faf9ff; border-color:rgba(130,80,223,0.35); }
+html[data-theme="light"] .phase-conn .phase-label { background:#f7efe3; color:#8a5a2a; border-color:rgba(176,130,74,0.35); }
+html[data-theme="light"] .phase-conn .phase-body  { background:#fdfaf4; border-color:rgba(176,130,74,0.35); }
+html[data-theme="light"] .phase-perf .phase-label { background:#e0f7f9; color:#0d6e75; border-color:rgba(27,154,163,0.35); }
+html[data-theme="light"] .phase-perf .phase-body  { background:#f2fcfd; border-color:rgba(27,154,163,0.35); }
 
   /* connectors / misc chrome */
   html[data-theme="light"] .arrow { color: #d0d7de; }
@@ -492,6 +510,9 @@ html[data-theme="light"] .phase-perf .phase-body  { background:#f2fcfd; border-c
   /* inline code + code blocks (Solarized-light syntax) */
   html[data-theme="light"] code { background: #eaecef; color: #222; }
   html[data-theme="light"] pre { background: #fcfcfc; border-color: #ddd; color: #586e75; }
+  html[data-theme="light"] pre { scrollbar-color: rgba(0,0,0,0.28) transparent; }
+  html[data-theme="light"] pre::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.22); }
+  html[data-theme="light"] pre::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.34); }
   html[data-theme="light"] .kw  { color: #dc322f; }
   html[data-theme="light"] .cls { color: #268bd2; }
   html[data-theme="light"] .fn  { color: #6c71c4; }
