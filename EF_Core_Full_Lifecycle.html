@@ -291,21 +291,9 @@
   .num { color: #f0c25a; }
   .ann { color: #7ee787; }
 
-  /* ── cards ── */
-  .grid3 {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px;
-    margin-top: 8px;
-  }
-  .card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid #30363d;
-    border-radius: 8px;
-    padding: 10px 12px;
-  }
-  .card-title { font-size: 0.78rem; font-weight: 700; margin-bottom: 4px; }
-  .card-body  { font-size: 0.71rem; color: #8b949e; line-height: 1.5; }
+  
+
+  
 
   /* ── warning/info callout ── */
   .callout {
@@ -350,7 +338,6 @@
   .tl-item.hl-orange::before { background: #f78166; }
   .tl-item.hl-purple::before { background: #d2a8ff; }
   .tl-item strong { color: #e6edf3; }
-  .tl-note { font-size: 0.7rem; color: #8b949e; margin-top: 2px; }
 
   /* legend */
   .legend {
@@ -370,7 +357,7 @@
   @media (max-width: 800px) {
     pre { font-size: 0.7rem; padding: 12px 14px; }
     .phase-body { padding: 12px 14px; }
-    .grid3 { grid-template-columns: 1fr 1fr; }
+    
   }
 
   /* ── mobile ── */
@@ -400,8 +387,7 @@
       border-left-width: 1px; border-left-style: solid;   /* restore left border (was removed for sidebar layout) */
       border-top-style: none;          /* remove top border (label is now the top element) */
     }
-    .grid3 { grid-template-columns: 1fr; }
-    .grid4 { grid-template-columns: 1fr; }
+
     pre { font-size: 0.65rem; padding: 10px 12px; }
     table { font-size: 0.65rem !important; }
     .step-main { font-size: 0.78rem; }
@@ -558,18 +544,13 @@ html[data-theme="light"] .phase-perf .phase-body  { background:#f2fcfd; border-c
   html[data-theme="light"] .num { color: #b58900; }
   html[data-theme="light"] .ann { color: #859900; }
 
-  /* DI lifetime cards */
-  html[data-theme="light"] .card { background: #fff; border-color: #d0d7de; }
-  html[data-theme="light"] .card-body { color: #57606a; }
-  html[data-theme="light"] .singleton .card-title { color: #1a7f37; }
-  html[data-theme="light"] .scoped    .card-title { color: #0969da; }
-  html[data-theme="light"] .transient .card-title { color: #8250df; }
+  
 
-  /* result-type grid */
-  html[data-theme="light"] .result-row { background: #fff; border-color: #d0d7de; }
-  html[data-theme="light"] .ok   { color: #1a7f37; }
-  html[data-theme="light"] .warn { color: #9a6700; }
-  html[data-theme="light"] .err  { color: #cf222e; }
+  
+
+  
+
+  
 
   /* sequence timeline */
   html[data-theme="light"] .timeline { border-left-color: #d0d7de; }
@@ -578,19 +559,14 @@ html[data-theme="light"] .phase-perf .phase-body  { background:#f2fcfd; border-c
   html[data-theme="light"] .tl-item.highlight::before { background: #2da44e; }
   html[data-theme="light"] .tl-item.hl-orange::before { background: #e8843c; }
   html[data-theme="light"] .tl-item strong { color: #0d1117; }
-  html[data-theme="light"] .tl-note { color: #6a737d; }
 
-  /* middleware in/out diagram */
-  html[data-theme="light"] .mw-diagram { background: #f6f8fa; border-color: #d0d7de; }
-  html[data-theme="light"] .mw-diagram-title { color: #57606a; }
+  
 
-  /* filter chain */
-  html[data-theme="light"] .filter-arrow { color: #afb8c1; }
-  html[data-theme="light"] .f-auth   { background: #eafbe7; border-color: #2da44e; color: #1a7f37; }
-  html[data-theme="light"] .f-res    { background: #ddf4ff; border-color: #1f6feb; color: #0969da; }
-  html[data-theme="light"] .f-act    { background: #fbefff; border-color: #8957e5; color: #8250df; }
-  html[data-theme="light"] .f-exc    { background: #ffebe9; border-color: #da3633; color: #cf222e; }
-  html[data-theme="light"] .f-result { background: #fff8c5; border-color: #d29922; color: #9a6700; }
+  
+
+  
+
+  
 
   /* callouts */
   html[data-theme="light"] .callout-warn { background: #fff8c5; border-color: #d29922; color: #7d4e00; }

@@ -308,80 +308,19 @@
   .warn { color: #e3b341; }
   .err  { color: #ff7b72; }
 
-  /* ── sequence timeline ── */
-  .timeline {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    margin-top: 8px;
-    border-left: 2px solid #30363d;
-    padding-left: 16px;
-    margin-left: 8px;
-  }
-  .tl-item {
-    position: relative;
-    padding: 5px 0;
-    font-size: 0.78rem;
-    line-height: 1.4;
-    color: #c9d1d9;
-  }
-  .tl-item::before {
-    content: '';
-    position: absolute;
-    left: -21px;
-    top: 11px;
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: #30363d;
-  }
-  .tl-item.highlight::before { background: #7ee787; }
-  .tl-item.hl-orange::before { background: #f78166; }
-  .tl-item strong { color: #e6edf3; }
-  .tl-note { font-size: 0.7rem; color: #8b949e; margin-top: 2px; }
+  
 
-  /* ── middleware in/out diagram ── */
-  .mw-diagram {
-    margin-top: 14px;
-    background: #161b22;
-    border: 1px solid #30363d;
-    border-radius: 8px;
-    padding: 16px 18px;
-    font-size: 0.73rem;
-  }
-  .mw-diagram-title {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: #8b949e;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
-  /* ── filters order table ── */
-  .filter-chain {
-    display: flex;
-    align-items: center;
-    margin-top: 10px;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  .filter-box {
-    padding: 5px 11px;
-    border-radius: 6px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    border: 1px solid;
-    white-space: nowrap;
-  }
-  .filter-arrow {
-    color: #30363d;
-    font-size: 0.9rem;
-    padding: 0 2px;
-  }
-  .f-auth   { background: #192b25; border-color: #3fb950; color: #7ee787; }
-  .f-res    { background: #1a2232; border-color: #1f6feb; color: #79c0ff; }
-  .f-act    { background: #221a2c; border-color: #8957e5; color: #d2a8ff; }
-  .f-exc    { background: #2b1a1a; border-color: #da3633; color: #ff7b72; }
-  .f-result { background: #2b2218; border-color: #d29922; color: #e3b341; }
+  
+
+  
+
+  
+
+  
+
+  
+
+  
 
   /* ── warning/info callout ── */
   .callout {
@@ -462,8 +401,7 @@
     .result-grid { grid-template-columns: 1fr; }
     pre { font-size: 0.65rem; padding: 10px 12px; }
     table { font-size: 0.65rem !important; }
-    .filter-chain { gap: 3px; }
-    .filter-box { font-size: 0.65rem; padding: 4px 7px; }
+
     .step-main { font-size: 0.78rem; }
     .step-note { font-size: 0.68rem; }
   }
@@ -631,26 +569,19 @@ html[data-theme="light"] .phase-err .phase-body  { background:#fff7f6; border-co
   html[data-theme="light"] .warn { color: #9a6700; }
   html[data-theme="light"] .err  { color: #cf222e; }
 
-  /* sequence timeline */
-  html[data-theme="light"] .timeline { border-left-color: #d0d7de; }
-  html[data-theme="light"] .tl-item { color: #24292f; }
-  html[data-theme="light"] .tl-item::before { background: #d0d7de; }
-  html[data-theme="light"] .tl-item.highlight::before { background: #2da44e; }
-  html[data-theme="light"] .tl-item.hl-orange::before { background: #e8843c; }
-  html[data-theme="light"] .tl-item strong { color: #0d1117; }
-  html[data-theme="light"] .tl-note { color: #6a737d; }
+  
 
-  /* middleware in/out diagram */
-  html[data-theme="light"] .mw-diagram { background: #f6f8fa; border-color: #d0d7de; }
-  html[data-theme="light"] .mw-diagram-title { color: #57606a; }
+  
 
-  /* filter chain */
-  html[data-theme="light"] .filter-arrow { color: #afb8c1; }
-  html[data-theme="light"] .f-auth   { background: #eafbe7; border-color: #2da44e; color: #1a7f37; }
-  html[data-theme="light"] .f-res    { background: #ddf4ff; border-color: #1f6feb; color: #0969da; }
-  html[data-theme="light"] .f-act    { background: #fbefff; border-color: #8957e5; color: #8250df; }
-  html[data-theme="light"] .f-exc    { background: #ffebe9; border-color: #da3633; color: #cf222e; }
-  html[data-theme="light"] .f-result { background: #fff8c5; border-color: #d29922; color: #9a6700; }
+  
+
+  
+
+  
+
+  
+
+  
 
   /* callouts */
   html[data-theme="light"] .callout-warn { background: #fff8c5; border-color: #d29922; color: #7d4e00; }
