@@ -214,7 +214,7 @@
   }
 
   code {
-    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', 'Menlo', monospace;
     font-size: 0.78em;
     background: rgba(255,255,255,0.07);
     padding: 1px 5px;
@@ -228,7 +228,7 @@
     border: 1px solid #30363d;
     border-radius: 8px;
     padding: 14px 18px;
-    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', 'Menlo', monospace;
     font-size: 0.75rem;
     line-height: 1.7;
     overflow-x: auto;
@@ -1284,7 +1284,7 @@ app.<span class="fn">UseMiddleware</span>&lt;<span class="cls">RequestLoggingMid
       </div>
 
       <!-- nesting diagram + per-filter explanation combined -->
-      <div style="font-family:&#39;Cascadia Code&#39;,&#39;Fira Code&#39;,&#39;Consolas&#39;,monospace;font-size:0.72rem;line-height:1.9;color:#c9d1d9;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 18px;margin-bottom:14px;">
+      <div style="font-family:'Cascadia Code','JetBrains Mono','Fira Code','Consolas','Menlo',monospace;font-size:0.72rem;line-height:1.9;color:#c9d1d9;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 18px;margin-bottom:14px;">
         <span style="color:#ff7b72;">IExceptionFilter</span> <span style="color:#8b949e;">← catches exceptions from inside the MVC pipeline only (not middleware); set ExceptionHandled = true to suppress — see ⑪ for the full safety net</span><br>
         &nbsp;&nbsp;<span style="color:#f0c25a;">IAuthorizationFilter</span> <span style="color:#8b949e;">← [Authorize] lives here; 401/403 if denied, nothing below runs</span><br>
         &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#f0c25a;">IResourceFilter</span> <span style="color:#8b949e;">← before model binding; short-circuit here to serve from cache</span><br>
