@@ -3,6 +3,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EF Core Full Lifecycle</title>
+<script>(function(){try{var p=localStorage.getItem("theme-pref")||"system";var d=p==="system"?(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):p;document.documentElement.setAttribute("data-theme",d);}catch(e){}})();</script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -389,181 +390,190 @@
     .step-note { font-size: 0.68rem; }
   }
 
-  /* ── theme toggle button ── */
-  .theme-toggle {
+  /* ── theme switcher (light / dark / system) ── */
+  .theme-switch {
     position: fixed;
     top: 12px;
     right: 16px;
     z-index: 200;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 20px;
     background: rgba(255,255,255,0.06);
     border: 1px solid #30363d;
-    border-radius: 20px;
-    padding: 5px 12px 5px 8px;
-    cursor: pointer;
-    font-size: 0.68rem;
-    font-weight: 600;
+    backdrop-filter: blur(8px);
+  }
+  .theme-switch button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 16px;
+    background: transparent;
     color: #8b949e;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    transition: background 0.15s, border-color 0.15s;
-    user-select: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: background 0.15s, color 0.15s;
   }
-  .theme-toggle:hover { background: rgba(255,255,255,0.1); border-color: #6e7681; color: #c9d1d9; }
-  .theme-toggle .toggle-track {
-    width: 28px; height: 16px;
-    border-radius: 8px;
-    background: #30363d;
-    position: relative;
-    transition: background 0.2s;
-    flex-shrink: 0;
+  .theme-switch button svg { width: 16px; height: 16px; display: block; }
+  .theme-switch button:hover { color: #e6edf3; }
+  .theme-switch button[aria-pressed="true"] {
+    background: rgba(255,255,255,0.12);
+    color: #e6edf3;
   }
-  .theme-toggle .toggle-thumb {
-    width: 12px; height: 12px;
-    border-radius: 50%;
-    background: #8b949e;
-    position: absolute;
-    top: 2px; left: 2px;
-    transition: transform 0.2s, background 0.2s;
+
+  /* ════════════════════════════════════════════════════════════
+     LIGHT THEME — applied when <html data-theme="light">
+     (dark is the base stylesheet above; only overrides live here)
+     ════════════════════════════════════════════════════════════ */
+  html[data-theme="light"] body { background: #f7f7f5; color: #333; }
+  html[data-theme="light"] h1 { color: #268bd2; }
+  html[data-theme="light"] .subtitle { color: #6a737d; }
+
+  /* sticky TOC */
+  html[data-theme="light"] .toc {
+    background: rgba(247,247,245,0.92);
+    border-bottom-color: #e1e4e8;
   }
-  .theme-toggle.active .toggle-track { background: #238636; }
-  .theme-toggle.active .toggle-thumb { transform: translateX(12px); background: #7ee787; }
-  .theme-toggle.active { color: #7ee787; border-color: #238636; }
+  html[data-theme="light"] .toc a:hover { filter: none; background: rgba(0,0,0,0.03); }
+html[data-theme="light"] .toc-ctx { color:#9a6700; border-color:#c9910a; background:#fff8c5; }
+html[data-theme="light"] .toc-model { color:#0969da; border-color:#1f6feb; background:#ddf4ff; }
+html[data-theme="light"] .toc-mig { color:#bc4c00; border-color:#e8843c; background:#fff1e5; }
+html[data-theme="light"] .toc-query { color:#8250df; border-color:#8957e5; background:#fbefff; }
+html[data-theme="light"] .toc-ct { color:#a4267f; border-color:#d6519e; background:#ffeff7; }
+html[data-theme="light"] .toc-save { color:#cf222e; border-color:#da3633; background:#ffebe9; }
+html[data-theme="light"] .toc-rel { color:#1a7f37; border-color:#2da44e; background:#eafbe7; }
+html[data-theme="light"] .toc-conc { color:#9a6700; border-color:#c9910a; background:#fff8c5; }
+html[data-theme="light"] .toc-raw { color:#5a6e00; border-color:#9bb000; background:#f4f8d4; }
+html[data-theme="light"] .toc-int { color:#6639ba; border-color:#8250df; background:#f0eeff; }
+html[data-theme="light"] .toc-conn { color:#8a5a2a; border-color:#b0824a; background:#f7efe3; }
+html[data-theme="light"] .toc-perf { color:#0d6e75; border-color:#1b9aa3; background:#e0f7f9; }
 
-  /* ── classic dark theme — no gray, white text, black backgrounds ── */
-  body.classic {
-    background: #0c0c0c;
-    color: #f5f5f5;
+  /* phase banners */
+html[data-theme="light"] .phase-ctx .phase-label { background:#fff8c5; color:#9a6700; }
+html[data-theme="light"] .phase-ctx .phase-body  { background:#fffdf2; border-color:#c9910a; }
+html[data-theme="light"] .phase-model .phase-label { background:#ddf4ff; color:#0969da; }
+html[data-theme="light"] .phase-model .phase-body  { background:#f5fbff; border-color:#1f6feb; }
+html[data-theme="light"] .phase-mig .phase-label { background:#fff1e5; color:#bc4c00; }
+html[data-theme="light"] .phase-mig .phase-body  { background:#fff9f4; border-color:#e8843c; }
+html[data-theme="light"] .phase-query .phase-label { background:#fbefff; color:#8250df; }
+html[data-theme="light"] .phase-query .phase-body  { background:#fdf9ff; border-color:#8957e5; }
+html[data-theme="light"] .phase-ct .phase-label { background:#ffeff7; color:#a4267f; }
+html[data-theme="light"] .phase-ct .phase-body  { background:#fff7fb; border-color:#d6519e; }
+html[data-theme="light"] .phase-save .phase-label { background:#ffebe9; color:#cf222e; }
+html[data-theme="light"] .phase-save .phase-body  { background:#fff7f6; border-color:#da3633; }
+html[data-theme="light"] .phase-rel .phase-label { background:#eafbe7; color:#1a7f37; }
+html[data-theme="light"] .phase-rel .phase-body  { background:#f6fff9; border-color:#2da44e; }
+html[data-theme="light"] .phase-conc .phase-label { background:#fff8c5; color:#9a6700; }
+html[data-theme="light"] .phase-conc .phase-body  { background:#fffdf2; border-color:#c9910a; }
+html[data-theme="light"] .phase-raw .phase-label { background:#f4f8d4; color:#5a6e00; }
+html[data-theme="light"] .phase-raw .phase-body  { background:#fbfde9; border-color:#9bb000; }
+html[data-theme="light"] .phase-int .phase-label { background:#f0eeff; color:#6639ba; }
+html[data-theme="light"] .phase-int .phase-body  { background:#faf9ff; border-color:#8250df; }
+html[data-theme="light"] .phase-conn .phase-label { background:#f7efe3; color:#8a5a2a; }
+html[data-theme="light"] .phase-conn .phase-body  { background:#fdfaf4; border-color:#b0824a; }
+html[data-theme="light"] .phase-perf .phase-label { background:#e0f7f9; color:#0d6e75; }
+html[data-theme="light"] .phase-perf .phase-body  { background:#f2fcfd; border-color:#1b9aa3; }
+
+  /* connectors / misc chrome */
+  html[data-theme="light"] .arrow { color: #d0d7de; }
+  html[data-theme="light"] .arrow::before { background: #d0d7de; }
+  html[data-theme="light"] .arrow span { background: #f7f7f5; color: #6a737d; }
+  html[data-theme="light"] .badge,
+  html[data-theme="light"] .step-num { background: rgba(0,0,0,0.05); color: #57606a; }
+  html[data-theme="light"] .step-note { color: #6a737d; }
+
+  /* inline code + code blocks (Solarized-light syntax) */
+  html[data-theme="light"] code { background: #eaecef; color: #222; }
+  html[data-theme="light"] pre { background: #fcfcfc; border-color: #ddd; color: #586e75; }
+  html[data-theme="light"] .kw  { color: #dc322f; }
+  html[data-theme="light"] .cls { color: #268bd2; }
+  html[data-theme="light"] .fn  { color: #6c71c4; }
+  html[data-theme="light"] .str { color: #2aa198; }
+  html[data-theme="light"] .cmt { color: #93a1a1; }
+  html[data-theme="light"] .num { color: #b58900; }
+  html[data-theme="light"] .ann { color: #859900; }
+
+  /* DI lifetime cards */
+  html[data-theme="light"] .card { background: #fff; border-color: #d0d7de; }
+  html[data-theme="light"] .card-body { color: #57606a; }
+  html[data-theme="light"] .singleton .card-title { color: #1a7f37; }
+  html[data-theme="light"] .scoped    .card-title { color: #0969da; }
+  html[data-theme="light"] .transient .card-title { color: #8250df; }
+
+  /* result-type grid */
+  html[data-theme="light"] .result-row { background: #fff; border-color: #d0d7de; }
+  html[data-theme="light"] .ok   { color: #1a7f37; }
+  html[data-theme="light"] .warn { color: #9a6700; }
+  html[data-theme="light"] .err  { color: #cf222e; }
+
+  /* sequence timeline */
+  html[data-theme="light"] .timeline { border-left-color: #d0d7de; }
+  html[data-theme="light"] .tl-item { color: #24292f; }
+  html[data-theme="light"] .tl-item::before { background: #d0d7de; }
+  html[data-theme="light"] .tl-item.highlight::before { background: #2da44e; }
+  html[data-theme="light"] .tl-item.hl-orange::before { background: #e8843c; }
+  html[data-theme="light"] .tl-item strong { color: #0d1117; }
+  html[data-theme="light"] .tl-note { color: #6a737d; }
+
+  /* middleware in/out diagram */
+  html[data-theme="light"] .mw-diagram { background: #f6f8fa; border-color: #d0d7de; }
+  html[data-theme="light"] .mw-diagram-title { color: #57606a; }
+
+  /* filter chain */
+  html[data-theme="light"] .filter-arrow { color: #afb8c1; }
+  html[data-theme="light"] .f-auth   { background: #eafbe7; border-color: #2da44e; color: #1a7f37; }
+  html[data-theme="light"] .f-res    { background: #ddf4ff; border-color: #1f6feb; color: #0969da; }
+  html[data-theme="light"] .f-act    { background: #fbefff; border-color: #8957e5; color: #8250df; }
+  html[data-theme="light"] .f-exc    { background: #ffebe9; border-color: #da3633; color: #cf222e; }
+  html[data-theme="light"] .f-result { background: #fff8c5; border-color: #d29922; color: #9a6700; }
+
+  /* callouts */
+  html[data-theme="light"] .callout-warn { background: #fff8c5; border-color: #d29922; color: #7d4e00; }
+  html[data-theme="light"] .callout-info { background: #ddf4ff; border-color: #1f6feb; color: #0a3069; }
+  html[data-theme="light"] .callout-tip  { background: #eafbe7; border-color: #2da44e; color: #0a5a2a; }
+
+  /* legend */
+  html[data-theme="light"] .legend { color: #6a737d; }
+
+  /* the switcher itself, in light mode */
+  html[data-theme="light"] .theme-switch { background: rgba(0,0,0,0.04); border-color: #d0d7de; }
+  html[data-theme="light"] .theme-switch button { color: #57606a; }
+  html[data-theme="light"] .theme-switch button:hover { color: #0d1117; }
+  html[data-theme="light"] .theme-switch button[aria-pressed="true"] {
+    background: #fff;
+    color: #0969da;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
   }
-  body.classic .toc {
-    background: rgba(12,12,12,0.98);
-    border-bottom-color: #1e1e1e;
-  }
-  body.classic .toc-ctx,
-  body.classic .toc-model,
-  body.classic .toc-mig,
-  body.classic .toc-query,
-  body.classic .toc-ct,
-  body.classic .toc-save,
-  body.classic .toc-rel,
-  body.classic .toc-conc,
-  body.classic .toc-raw,
-  body.classic .toc-int,
-  body.classic .toc-conn,
-  body.classic .toc-perf {
-    color: #e0e0e0; border-color: #2a2a2a; background: #141414;
-  }
-  body.classic .toc a:hover { color: #ffffff; border-color: #4ec9b0; background: #1a1a1a; }
 
-
-  body.classic .phase-req     .phase-label { background:#0e0e0e; color:#9cdcfe; }
-  body.classic .phase-req     .phase-body  { background:#0a0a0a; border-color:#1e3a5a; }
-  body.classic .phase-mw      .phase-label { background:#0e0e0e; color:#dcdcaa; }
-  body.classic .phase-mw      .phase-body  { background:#0a0a0a; border-color:#4a4a1a; }
-  body.classic .phase-route   .phase-label { background:#0e0e0e; color:#9cdcfe; }
-  body.classic .phase-route   .phase-body  { background:#0a0a0a; border-color:#1e3a5a; }
-  body.classic .phase-di      .phase-label { background:#0e0e0e; color:#f5f5f5; }
-  body.classic .phase-di      .phase-body  { background:#0a0a0a; border-color:#2a2a2a; }
-  body.classic .phase-filters .phase-label { background:#0e0e0e; color:#ce9178; }
-  body.classic .phase-filters .phase-body  { background:#0a0a0a; border-color:#4a2818; }
-  body.classic .phase-action  .phase-label { background:#0e0e0e; color:#c586c0; }
-  body.classic .phase-action  .phase-body  { background:#0a0a0a; border-color:#3a1e4a; }
-
-  body.classic .phase-result  .phase-label { background:#0e0e0e; color:#f48771; }
-  body.classic .phase-result  .phase-body  { background:#0a0a0a; border-color:#4a1e1e; }
-  body.classic .phase-serial  .phase-label { background:#0e0e0e; color:#dcdcaa; }
-  body.classic .phase-serial  .phase-body  { background:#0a0a0a; border-color:#4a4a1a; }
-
-  body.classic .phase-err     .phase-label { background:#0e0e0e; color:#f48771; }
-  body.classic .phase-err     .phase-body  { background:#0a0a0a; border-color:#4a1e1e; }
-
-  body.classic .phase-ctx   .phase-label { background:#0e0e0e; color:#dcdcaa; }
-  body.classic .phase-ctx   .phase-body  { background:#0a0a0a; border-color:#4a4a1a; }
-  body.classic .phase-model   .phase-label { background:#0e0e0e; color:#9cdcfe; }
-  body.classic .phase-model   .phase-body  { background:#0a0a0a; border-color:#1e3a5a; }
-  body.classic .phase-mig   .phase-label { background:#0e0e0e; color:#ce9178; }
-  body.classic .phase-mig   .phase-body  { background:#0a0a0a; border-color:#4a2818; }
-  body.classic .phase-query   .phase-label { background:#0e0e0e; color:#c586c0; }
-  body.classic .phase-query   .phase-body  { background:#0a0a0a; border-color:#3a1e4a; }
-  body.classic .phase-ct   .phase-label { background:#0e0e0e; color:#f48771; }
-  body.classic .phase-ct   .phase-body  { background:#0a0a0a; border-color:#4a1e1e; }
-  body.classic .phase-save   .phase-label { background:#0e0e0e; color:#f48771; }
-  body.classic .phase-save   .phase-body  { background:#0a0a0a; border-color:#4a1e1e; }
-  body.classic .phase-rel   .phase-label { background:#0e0e0e; color:#4ec9b0; }
-  body.classic .phase-rel   .phase-body  { background:#0a0a0a; border-color:#1e4a3e; }
-  body.classic .phase-conc   .phase-label { background:#0e0e0e; color:#dcdcaa; }
-  body.classic .phase-conc   .phase-body  { background:#0a0a0a; border-color:#4a4a1a; }
-  body.classic .phase-raw   .phase-label { background:#0e0e0e; color:#b5cea8; }
-  body.classic .phase-raw   .phase-body  { background:#0a0a0a; border-color:#2a3a1e; }
-  body.classic .phase-int   .phase-label { background:#0e0e0e; color:#c586c0; }
-  body.classic .phase-int   .phase-body  { background:#0a0a0a; border-color:#3a1e4a; }
-  body.classic .phase-conn   .phase-label { background:#0e0e0e; color:#ce9178; }
-  body.classic .phase-conn   .phase-body  { background:#0a0a0a; border-color:#4a2818; }
-  body.classic .phase-perf   .phase-label { background:#0e0e0e; color:#9cdcfe; }
-  body.classic .phase-perf   .phase-body  { background:#0a0a0a; border-color:#1e3a5a; }
-
-  body.classic .arrow::before { background: #1e1e1e; }
-  body.classic .arrow span { background: #0c0c0c; color: #555; }
-
-  body.classic pre {
-    background: #0e0e0e;
-    border-color: #1e1e1e;
-    color: #f5f5f5;
-  }
-  body.classic code {
-    background: rgba(255,255,255,0.08);
-    color: #f5f5f5;
-  }
-  body.classic .badge { background: rgba(255,255,255,0.08); color: #e0e0e0; }
-  body.classic .step-note { color: #e0e0e0; }
-  body.classic .step-main { color: #f5f5f5; }
-  body.classic .phase-title { color: #f5f5f5; }
-  body.classic .card { background: #0e0e0e; border-color: #1e1e1e; }
-  body.classic .card-body { color: #e0e0e0; }
-  body.classic .callout-warn { background: #141200; border-color: #dcdcaa; color: #f5f5f5; }
-  body.classic .callout-info { background: #00080e; border-color: #9cdcfe; color: #f5f5f5; }
-  body.classic .callout-tip  { background: #001210; border-color: #4ec9b0; color: #f5f5f5; }
-  body.classic .result-row   { background: #0e0e0e; border-color: #1e1e1e; color: #f5f5f5; }
-  body.classic .ok            { color: #4ec9b0; }
-  body.classic .warn          { color: #dcdcaa; }
-  body.classic .err           { color: #f48771; }
-  body.classic .result-code.ok   { color: #4ec9b0; }
-  body.classic .result-code.warn { color: #dcdcaa; }
-  body.classic .result-code.err  { color: #f48771; }
-  body.classic .result-fn.ok     { color: #4ec9b0; }
-  body.classic .legend { color: #e0e0e0; }
-  body.classic h1 { color: #4ec9b0; }
-  body.classic .subtitle { color: #e0e0e0; }
-  body.classic .kw  { color: #569cd6; }
-  body.classic .cls { color: #4ec9b0; }
-  body.classic .fn  { color: #dcdcaa; }
-  body.classic .str { color: #ce9178; }
-  body.classic .cmt { color: #6a9955; font-style: italic; }
-  body.classic .num { color: #b5cea8; }
-  body.classic .ann { color: #c586c0; }
-  body.classic .tl-item { color: #e0e0e0; }
-  body.classic .tl-item strong { color: #f5f5f5; }
-  body.classic .tl-item::before { background: #2a2a2a; }
-  body.classic .timeline { border-left-color: #1e1e1e; }
-  body.classic .filter-box { border-color: #2a2a2a !important; background: #0e0e0e !important; color: #e0e0e0 !important; }
-  body.classic .filter-arrow { color: #2a2a2a; }
-  body.classic table th { color: #e0e0e0; }
-  body.classic table td { color: #f5f5f5; }
-  body.classic .singleton { border-color: #1e4a3e; }
-  body.classic .scoped    { border-color: #1e3a5a; }
-  body.classic .transient { border-color: #3a1e4a; }
-  body.classic .singleton .card-title { color: #4ec9b0; }
-  body.classic .scoped    .card-title { color: #9cdcfe; }
-  body.classic .transient .card-title { color: #c586c0; }
-  body.classic .theme-toggle { background: rgba(255,255,255,0.05); border-color: #1e1e1e; }
+  /* remap inline-styled colors (override inline non-!important declarations) */
+  html[data-theme="light"] [style*="color:#c9d1d9"] { color: #24292f !important; }
+  html[data-theme="light"] [style*="color:#f0c25a"] { color: #9a6700 !important; }
+  html[data-theme="light"] [style*="color:#8b949e"] { color: #57606a !important; }
+  html[data-theme="light"] [style*="color:#79c0ff"] { color: #0969da !important; }
+  html[data-theme="light"] [style*="color:#9cdcfe"] { color: #0969da !important; }
+  html[data-theme="light"] [style*="color:#d2a8ff"] { color: #8250df !important; }
+  html[data-theme="light"] [style*="color:#ff7b72"] { color: #cf222e !important; }
+  html[data-theme="light"] [style*="color:#7ee787"] { color: #1a7f37 !important; }
+  html[data-theme="light"] [style*="color:#f78166"] { color: #bc4c00 !important; }
+  html[data-theme="light"] [style*="background:#161b22"] { background: #f6f8fa !important; border-color: #d0d7de !important; }
+  html[data-theme="light"] [style*="border-bottom:1px solid #21262d"] { border-bottom-color: #d8dee4 !important; }
+  html[data-theme="light"] [style*="border-bottom:1px solid #30363d"] { border-bottom-color: #d0d7de !important; }
+  html[data-theme="light"] [style*="border:1px solid #30363d"] { border-color: #d0d7de !important; }
 </style>
 </head>
 <body>
-<button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Switch theme">
-  <div class="toggle-track"><div class="toggle-thumb"></div></div>
-  <span id="themeLabel">Light</span>
-</button>
+<div class="theme-switch" role="group" aria-label="Color theme">
+  <button type="button" data-theme-choice="light" title="Light" aria-label="Light"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/></svg></button>
+  <button type="button" data-theme-choice="dark" title="Dark" aria-label="Dark"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/></svg></button>
+  <button type="button" data-theme-choice="system" title="System" aria-label="System (match OS)"><svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V64a8,8,0,0,1,8-8H208a8,8,0,0,1,8,8Zm-48,48a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,224Z"/></svg></button>
+</div>
 
 <h1>Entity Framework Core — Full Lifecycle</h1>
 <p class="subtitle">From model definition to SQL on the wire · design-time · migrations · query pipeline · change tracking · SaveChanges · relationships · concurrency · raw SQL · interceptors · transactions · performance</p>
@@ -1625,22 +1635,22 @@ builder.Services.<span class="fn">AddDbContext</span>&lt;<span class="cls">AppDb
 
 
 <script>
-  function toggleTheme() {
-    const body = document.body;
-    const btn = document.getElementById('themeToggle');
-    const label = document.getElementById('themeLabel');
-    const isClassic = body.classList.toggle('classic');
-    btn.classList.toggle('active', isClassic);
-    label.textContent = isClassic ? 'Dark' : 'Light';
-    localStorage.setItem('efcore-theme', isClassic ? 'classic' : 'colorful');
-  }
-  (function() {
-    const saved = localStorage.getItem('efcore-theme');
-    if (saved === 'classic') {
-      document.body.classList.add('classic');
-      document.getElementById('themeToggle').classList.add('active');
-      document.getElementById('themeLabel').textContent = 'Dark';
+  (function () {
+    const KEY = 'theme-pref';
+    const mql = window.matchMedia('(prefers-color-scheme: light)');
+    const buttons = Array.from(document.querySelectorAll('.theme-switch button'));
+    const pref = () => localStorage.getItem(KEY) || 'system';
+    const resolve = p => p === 'system' ? (mql.matches ? 'light' : 'dark') : p;
+    function apply(p) {
+      document.documentElement.setAttribute('data-theme', resolve(p));
+      buttons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.themeChoice === p)));
     }
+    buttons.forEach(b => b.addEventListener('click', () => {
+      localStorage.setItem(KEY, b.dataset.themeChoice);
+      apply(b.dataset.themeChoice);
+    }));
+    mql.addEventListener('change', () => { if (pref() === 'system') apply('system'); });
+    apply(pref());
   })();
 </script>
 </body></html>
